@@ -37,23 +37,6 @@ jobs:
       - name: Publish (Release, WASM AOT)
         run: dotnet publish src/EsmParser.Web -c Release -o publish
 
-      - name: Adjust site for GitHub Pages hosting
-        run: |
-          set -euo pipefail
-          site=publish/wwwroot
-          repo="${GITHUB_REPOSITORY#*/}"
-
-          # Project pages are served from /<repo>/, so the document base must match.
-          # User/organization pages (<owner>.github.io) stay at the root.
-          if [[ "$repo" != *.github.io ]]; then
-            sed -i "s|<base href=\"/\" />|<base href=\"/${repo}/\" />|" "$site/index.html"
-          fi
-
-          # SPA fallback so deep links (e.g. /explore) resolve, and .nojekyll so
-          # Pages serves the underscore-prefixed _framework directory.
-          cp "$site/index.html" "$site/404.html"
-          touch "$site/.nojekyll"
-
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
