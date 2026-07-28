@@ -1,5 +1,5 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
+﻿<div class="top-row ps-3 navbar">
+    <div class="container-fluid px-0">
         <a class="navbar-brand" href="">ESM Explorer</a>
         <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
             <span class="navbar-toggler-icon"></span>
@@ -8,16 +8,22 @@
 </div>
 
 <div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
+    <nav class="flex-column">
+        <div class="nav-section-label">Plugins</div>
+        <div class="nav-item">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Open Plugin
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Open Plugins
             </NavLink>
         </div>
-        <div class="nav-item px-3">
+        <div class="nav-item">
             <NavLink class="nav-link" href="explore">
                 <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Explorer
             </NavLink>
+        </div>
+
+        <div class="nav-section-label">Appearance</div>
+        <div class="nav-theme" @onclick:stopPropagation="true">
+            <ThemeToggle />
         </div>
     </nav>
 </div>

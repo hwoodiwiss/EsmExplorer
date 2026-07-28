@@ -1,77 +1,93 @@
+/* =========================================================
+   Page Shell
+   ========================================================= */
 .page {
     position: relative;
     display: flex;
     flex-direction: column;
+    min-height: 100vh;
+    background-color: var(--app-bg);
 }
 
 main {
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
 }
 
+/* =========================================================
+   Sidebar
+   ========================================================= */
 .sidebar {
-    background-image: linear-gradient(180deg, rgb(5, 39, 103) 0%, #3a0647 70%);
+    background-color: var(--app-sidebar-bg);
+    border-right: 1px solid var(--app-sidebar-border);
+    flex-shrink: 0;
 }
 
+/* =========================================================
+   Top bar (mobile header strip - hidden on desktop)
+   ========================================================= */
 .top-row {
-    background-color: var(--bs-tertiary-bg);
-    border-bottom: 1px solid var(--bs-border-color);
-    justify-content: flex-end;
-    height: 3.5rem;
     display: flex;
     align-items: center;
+    justify-content: flex-end;
+    height: 3.25rem;
+    padding-inline: 1.25rem;
+    border-bottom: 1px solid var(--app-border);
+    background-color: var(--app-surface);
 }
 
-    .top-row ::deep a, .top-row ::deep .btn-link {
-        white-space: nowrap;
-        margin-left: 1.5rem;
-        text-decoration: none;
-    }
+.top-row ::deep a,
+.top-row ::deep .btn-link {
+    white-space: nowrap;
+    margin-left: 1.5rem;
+    text-decoration: none;
+    font-size: 0.875rem;
+    color: var(--app-text-muted);
+    transition: color var(--app-transition);
+}
 
-    .top-row ::deep a:hover, .top-row ::deep .btn-link:hover {
-        text-decoration: underline;
-    }
-
-    .top-row ::deep a:first-child {
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
+.top-row ::deep a:hover,
+.top-row ::deep .btn-link:hover {
+    color: var(--app-text);
+    text-decoration: none;
+}
 
 @media (max-width: 640.98px) {
     .top-row {
         justify-content: space-between;
     }
 
-    .top-row ::deep a, .top-row ::deep .btn-link {
+    .top-row ::deep a,
+    .top-row ::deep .btn-link {
         margin-left: 0;
     }
 }
 
+/* =========================================================
+   Desktop: side-by-side layout
+   ========================================================= */
 @media (min-width: 641px) {
     .page {
         flex-direction: row;
     }
 
     .sidebar {
-        width: 250px;
+        width: var(--app-sidebar-width);
         height: 100vh;
         position: sticky;
         top: 0;
+        overflow-y: auto;
     }
 
     .top-row {
-        position: sticky;
-        top: 0;
-        z-index: 1;
+        display: none; /* sidebar always visible, no need for a mobile header bar */
     }
 
-    .top-row.auth ::deep a:first-child {
-        flex: 1;
-        text-align: right;
-        width: 0;
-    }
-
-    .top-row, article {
+    .top-row,
+    article {
         padding-left: 2rem !important;
-        padding-right: 1.5rem !important;
+        padding-right: 2rem !important;
     }
 }

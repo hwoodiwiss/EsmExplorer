@@ -1,132 +1,592 @@
+/* Design system ported from HwoodiwissHelper (helper.hwoodiwiss.com). */
+
+/* =========================================================
+   Design Tokens
+   ========================================================= */
+:root {
+    /* Typography */
+    --app-font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --app-font-mono: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
+
+    /* Accent (indigo) */
+    --app-accent:         #6366f1;
+    --app-accent-hover:   #4f46e5;
+    --app-accent-subtle:  rgba(99, 102, 241, 0.12);
+    --app-accent-rgb:     99, 102, 241;
+
+    /* Surfaces - light defaults */
+    --app-bg:             #f8fafc;
+    --app-surface:        #ffffff;
+    --app-surface-raised: #f1f5f9;
+    --app-border:         #e2e8f0;
+    --app-border-subtle:  #f1f5f9;
+
+    /* Text - light defaults */
+    --app-text:           #0f172a;
+    --app-text-muted:     #64748b;
+    --app-text-inverted:  #ffffff;
+
+    /* Semantic */
+    --app-success:        #10b981;
+    --app-success-subtle: rgba(16, 185, 129, 0.12);
+    --app-danger:         #ef4444;
+    --app-danger-subtle:  rgba(239, 68, 68, 0.12);
+    --app-warning:        #f59e0b;
+    --app-warning-subtle: rgba(245, 158, 11, 0.12);
+
+    /* Shape */
+    --app-radius:    0.5rem;
+    --app-radius-sm: 0.375rem;
+    --app-radius-lg: 0.75rem;
+
+    /* Shadow */
+    --app-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --app-shadow:    0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+    --app-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+
+    /* Transitions */
+    --app-transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Sidebar */
+    --app-sidebar-bg:     #ffffff;
+    --app-sidebar-border: #e2e8f0;
+    --app-sidebar-width:  260px;
+}
+
+[data-bs-theme="dark"] {
+    /* Surfaces */
+    --app-bg:             #09090b;
+    --app-surface:        #18181b;
+    --app-surface-raised: #27272a;
+    --app-border:         #27272a;
+    --app-border-subtle:  #1f1f22;
+
+    /* Text */
+    --app-text:           #fafafa;
+    --app-text-muted:     #a1a1aa;
+
+    /* Accent (slightly lighter for dark bg contrast) */
+    --app-accent:         #818cf8;
+    --app-accent-hover:   #6366f1;
+    --app-accent-subtle:  rgba(129, 140, 248, 0.15);
+    --app-accent-rgb:     129, 140, 248;
+
+    /* Shadows (darker, more visible on dark bg) */
+    --app-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+    --app-shadow:    0 1px 3px 0 rgba(0, 0, 0, 0.5), 0 1px 2px -1px rgba(0, 0, 0, 0.4);
+    --app-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+
+    /* Sidebar */
+    --app-sidebar-bg:     #111113;
+    --app-sidebar-border: #27272a;
+}
+
+
+/* =========================================================
+   Bootstrap 5.3 CSS Variable Overrides
+   ========================================================= */
+:root,
+[data-bs-theme="light"],
+[data-bs-theme="dark"] {
+    --bs-font-sans-serif: var(--app-font);
+    --bs-font-monospace:  var(--app-font-mono);
+
+    --bs-primary:         var(--app-accent);
+    --bs-primary-rgb:     var(--app-accent-rgb);
+
+    --bs-border-radius:    var(--app-radius);
+    --bs-border-radius-sm: var(--app-radius-sm);
+    --bs-border-radius-lg: var(--app-radius-lg);
+    --bs-border-radius-xl: 1rem;
+
+    --bs-body-font-family: var(--app-font);
+    --bs-body-bg:          var(--app-bg);
+    --bs-body-color:       var(--app-text);
+
+    --bs-link-color:              var(--app-accent);
+    --bs-link-hover-color:        var(--app-accent-hover);
+    --bs-link-color-rgb:          var(--app-accent-rgb);
+    --bs-link-hover-color-rgb:    var(--app-accent-rgb);
+
+    --bs-border-color:            var(--app-border);
+
+    /* Cards */
+    --bs-card-bg:                 var(--app-surface);
+    --bs-card-border-color:       var(--app-border);
+    --bs-card-cap-bg:             var(--app-surface-raised);
+    --bs-card-box-shadow:         var(--app-shadow);
+
+    /* Tables */
+    --bs-table-bg:                transparent;
+    --bs-table-striped-bg:        var(--app-surface-raised);
+    --bs-table-hover-bg:          var(--app-accent-subtle);
+    --bs-table-border-color:      var(--app-border);
+
+    /* Forms */
+    --bs-input-bg:                var(--app-surface);
+    --bs-input-border-color:      var(--app-border);
+    --bs-input-focus-border-color: var(--app-accent);
+    --bs-input-focus-box-shadow:  0 0 0 3px var(--app-accent-subtle);
+
+    /* Modals / Dropdowns */
+    --bs-modal-bg:                var(--app-surface);
+    --bs-dropdown-bg:             var(--app-surface);
+    --bs-dropdown-border-color:   var(--app-border);
+}
+
+
+/* =========================================================
+   Global Base
+   ========================================================= */
 html, body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family: var(--app-font);
+    background-color: var(--app-bg);
+    color: var(--app-text);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    letter-spacing: -0.02em;
+    font-weight: 600;
+    color: var(--app-text);
+}
+
+h1 { font-size: 1.75rem; }
+h2 { font-size: 1.35rem; }
+h3 { font-size: 1.15rem; }
+
+p {
+    color: var(--app-text-muted);
+    line-height: 1.7;
 }
 
 h1:focus {
     outline: none;
 }
 
+a,
+.btn-link {
+    color: var(--app-accent);
+    text-decoration: none;
+    transition: color var(--app-transition);
+}
+
+a:hover,
+.btn-link:hover {
+    color: var(--app-accent-hover);
+    text-decoration: underline;
+}
+
+code {
+    font-family: var(--app-font-mono);
+    color: var(--app-accent);
+    background-color: var(--app-accent-subtle);
+    padding: 0.15em 0.4em;
+    border-radius: var(--app-radius-sm);
+    font-size: 0.875em;
+}
+
+
+/* =========================================================
+   Buttons
+   ========================================================= */
+.btn {
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    transition: background-color var(--app-transition),
+                border-color var(--app-transition),
+                box-shadow var(--app-transition),
+                color var(--app-transition);
+    border-radius: var(--app-radius-sm);
+}
+
 .btn-primary {
+    background-color: var(--app-accent);
+    border-color: var(--app-accent);
     color: #fff;
-    background-color: #1b6ec2;
-    border-color: #1861ac;
 }
 
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem var(--bs-body-bg), 0 0 0 0.25rem #258cfb;
+.btn-primary:hover,
+.btn-primary:focus {
+    background-color: var(--app-accent-hover);
+    border-color: var(--app-accent-hover);
+    color: #fff;
 }
 
+.btn-outline-primary {
+    color: var(--app-accent);
+    border-color: var(--app-accent);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--app-accent);
+    border-color: var(--app-accent);
+    color: #fff;
+}
+
+.btn-outline-secondary {
+    color: var(--app-text-muted);
+    border-color: var(--app-border);
+    background-color: transparent;
+}
+
+.btn-outline-secondary:hover {
+    background-color: var(--app-surface-raised);
+    border-color: var(--app-border);
+    color: var(--app-text);
+}
+
+.btn-secondary {
+    background-color: var(--app-accent);
+    border-color: var(--app-accent);
+    color: #fff;
+}
+
+.btn-outline-danger {
+    color: var(--app-danger);
+    border-color: var(--app-danger);
+}
+
+.btn-outline-danger:hover {
+    background-color: var(--app-danger);
+    border-color: var(--app-danger);
+    color: #fff;
+}
+
+
+/* =========================================================
+   Focus Rings
+   ========================================================= */
+.btn:focus-visible,
+.btn:active:focus,
+.btn-link.nav-link:focus-visible,
+.form-control:focus,
+.form-check-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--app-accent-subtle), 0 0 0 1px var(--app-accent);
+}
+
+
+/* =========================================================
+   Form Controls
+   ========================================================= */
+.form-control,
+.form-select {
+    background-color: var(--app-surface);
+    border-color: var(--app-border);
+    color: var(--app-text);
+    border-radius: var(--app-radius-sm);
+    transition: border-color var(--app-transition), box-shadow var(--app-transition);
+}
+
+.form-control:focus,
+.form-select:focus {
+    background-color: var(--app-surface);
+    border-color: var(--app-accent);
+    color: var(--app-text);
+    box-shadow: 0 0 0 3px var(--app-accent-subtle);
+}
+
+.form-control::placeholder {
+    color: var(--app-text-muted);
+    opacity: 0.7;
+}
+
+.form-label {
+    font-weight: 500;
+    font-size: 0.875rem;
+    color: var(--app-text);
+    margin-bottom: 0.375rem;
+}
+
+.form-text,
+.text-muted {
+    color: var(--app-text-muted) !important;
+}
+
+.form-check-input:checked {
+    background-color: var(--app-accent);
+    border-color: var(--app-accent);
+}
+
+
+/* =========================================================
+   Cards
+   ========================================================= */
+.card {
+    background-color: var(--app-surface);
+    border-color: var(--app-border);
+    border-radius: var(--app-radius);
+    box-shadow: var(--app-shadow-sm);
+    transition: box-shadow var(--app-transition), border-color var(--app-transition);
+}
+
+.card:hover {
+    box-shadow: var(--app-shadow-md);
+}
+
+.card-header {
+    background-color: var(--app-surface-raised);
+    border-bottom-color: var(--app-border);
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--app-text);
+}
+
+.card-title {
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: var(--app-text);
+    margin-bottom: 0.25rem;
+}
+
+.card-body {
+    padding: 1.25rem;
+}
+
+
+/* =========================================================
+   Tables
+   ========================================================= */
+.table {
+    color: var(--app-text);
+    --bs-table-color: var(--app-text);
+    --bs-table-bg: transparent;
+    --bs-table-striped-color: var(--app-text);
+    --bs-table-striped-bg: var(--app-surface-raised);
+    --bs-table-hover-color: var(--app-text);
+    --bs-table-hover-bg: var(--app-accent-subtle);
+    --bs-table-border-color: var(--app-border);
+    border-color: var(--app-border);
+    font-size: 0.9rem;
+}
+
+.table thead th {
+    font-weight: 600;
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--app-text-muted);
+    border-bottom-width: 1px;
+}
+
+.table td,
+.table th {
+    padding: 0.4rem 0.75rem;
+    vertical-align: middle;
+    border-color: var(--app-border);
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) > * {
+    background-color: var(--app-surface-raised);
+    color: var(--app-text);
+}
+
+
+/* =========================================================
+   Alerts
+   ========================================================= */
+.alert {
+    border-radius: var(--app-radius);
+    border-width: 1px;
+    font-size: 0.9rem;
+}
+
+.alert-success {
+    background-color: var(--app-success-subtle);
+    border-color: var(--app-success);
+    color: var(--app-text);
+}
+
+.alert-danger {
+    background-color: var(--app-danger-subtle);
+    border-color: var(--app-danger);
+    color: var(--app-text);
+}
+
+.alert-warning {
+    background-color: var(--app-warning-subtle);
+    border-color: var(--app-warning);
+    color: var(--app-text);
+}
+
+.alert-info {
+    background-color: var(--app-accent-subtle);
+    border-color: var(--app-accent);
+    color: var(--app-text);
+}
+
+.badge.text-bg-secondary {
+    background-color: var(--app-surface-raised) !important;
+    color: var(--app-text-muted) !important;
+    border: 1px solid var(--app-border);
+}
+
+.badge.text-bg-primary {
+    background-color: var(--app-accent) !important;
+    color: #fff !important;
+}
+
+.badge.text-bg-info {
+    background-color: var(--app-accent-subtle) !important;
+    color: var(--app-accent) !important;
+}
+
+.badge.text-bg-warning {
+    background-color: var(--app-warning-subtle) !important;
+    color: var(--app-warning) !important;
+    border: 1px solid var(--app-warning);
+}
+
+.badge.text-bg-danger {
+    background-color: var(--app-danger-subtle) !important;
+    color: var(--app-danger) !important;
+    border: 1px solid var(--app-danger);
+}
+
+.progress {
+    background-color: var(--app-surface-raised);
+}
+
+.progress-bar {
+    background-color: var(--app-accent);
+}
+
+
+/* =========================================================
+   Content area
+   ========================================================= */
 .content {
-    padding-top: 1.1rem;
+    padding-top: 1.5rem;
+    padding-bottom: 2rem;
 }
 
+/* Validation */
 .valid.modified:not([type=checkbox]) {
-    outline: 1px solid #26b050;
+    border-color: var(--app-success);
+    outline: none;
 }
 
 .invalid {
-    outline: 1px solid red;
+    border-color: var(--app-danger);
+    outline: none;
 }
 
 .validation-message {
-    color: red;
+    color: var(--app-danger);
+    font-size: 0.825rem;
+    margin-top: 0.25rem;
 }
 
+
+/* =========================================================
+   Blazor Error UI
+   ========================================================= */
 #blazor-error-ui {
-    color-scheme: light only;
-    background: lightyellow;
+    background: var(--app-surface);
+    border-top: 1px solid var(--app-border);
     bottom: 0;
-    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.12);
     box-sizing: border-box;
     display: none;
     left: 0;
-    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+    padding: 0.75rem 1.5rem;
     position: fixed;
     width: 100%;
     z-index: 1000;
+    font-size: 0.9rem;
+    color: var(--app-text);
 }
 
-    #blazor-error-ui .dismiss {
-        cursor: pointer;
-        position: absolute;
-        right: 0.75rem;
-        top: 0.5rem;
-    }
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--app-text-muted);
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0.25rem;
+}
+
+#blazor-error-ui .reload {
+    font-weight: 600;
+    margin-left: 0.5rem;
+}
 
 .blazor-error-boundary {
-    background: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTYiIGhlaWdodD0iNDkiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIG92ZXJmbG93PSJoaWRkZW4iPjxkZWZzPjxjbGlwUGF0aCBpZD0iY2xpcDAiPjxyZWN0IHg9IjIzNSIgeT0iNTEiIHdpZHRoPSI1NiIgaGVpZ2h0PSI0OSIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCNjbGlwMCkiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yMzUgLTUxKSI+PHBhdGggZD0iTTI2My41MDYgNTFDMjY0LjcxNyA1MSAyNjUuODEzIDUxLjQ4MzcgMjY2LjYwNiA1Mi4yNjU4TDI2Ny4wNTIgNTIuNzk4NyAyNjcuNTM5IDUzLjYyODMgMjkwLjE4NSA5Mi4xODMxIDI5MC41NDUgOTIuNzk1IDI5MC42NTYgOTIuOTk2QzI5MC44NzcgOTMuNTEzIDI5MSA5NC4wODE1IDI5MSA5NC42NzgyIDI5MSA5Ny4wNjUxIDI4OS4wMzggOTkgMjg2LjYxNyA5OUwyNDAuMzgzIDk5QzIzNy45NjMgOTkgMjM2IDk3LjA2NTEgMjM2IDk0LjY3ODIgMjM2IDk0LjM3OTkgMjM2LjAzMSA5NC4wODg2IDIzNi4wODkgOTMuODA3MkwyMzYuMzM4IDkzLjAxNjIgMjM2Ljg1OCA5Mi4xMzE0IDI1OS40NzMgNTMuNjI5NCAyNTkuOTYxIDUyLjc5ODUgMjYwLjQwNyA1Mi4yNjU4QzI2MS4yIDUxLjQ4MzcgMjYyLjI5NiA1MSAyNjMuNTA2IDUxWk0yNjMuNTg2IDY2LjAxODNDMjYwLjczNyA2Ni4wMTgzIDI1OS4zMTMgNjcuMTI0NSAyNTkuMzEzIDY5LjMzNyAyNTkuMzEzIDY5LjYxMDIgMjU5LjMzMiA2OS44NjA4IDI1OS4zNzEgNzAuMDg4N0wyNjEuNzk1IDg0LjAxNjEgMjY1LjM4IDg0LjAxNjEgMjY3LjgyMSA2OS43NDc1QzI2Ny44NiA2OS43MzA5IDI2Ny44NzkgNjkuNTg3NyAyNjcuODc5IDY5LjMxNzkgMjY3Ljg3OSA2Ny4xMTgyIDI2Ni40NDggNjYuMDE4MyAyNjMuNTg2IDY2LjAxODNaTTI2My41NzYgODYuMDU0N0MyNjEuMDQ5IDg2LjA1NDcgMjU5Ljc4NiA4Ny4zMDA1IDI1OS43ODYgODkuNzkyMSAyNTkuNzg2IDkyLjI4MzcgMjYxLjA0OSA5My41Mjk1IDI2My41NzYgOTMuNTI5NSAyNjYuMTE2IDkzLjUyOTUgMjY3LjM4NyA5Mi4yODM3IDI2Ny4zODcgODkuNzkyMSAyNjcuMzg3IDg3LjMwMDUgMjY2LjExNiA4Ni4wNTQ3IDI2My41NzYgODYuMDU0N1oiIGZpbGw9IiNGRkU1MDAiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjwvZz48L3N2Zz4=) no-repeat 1rem/1.8rem, #b32121;
-    padding: 1rem 1rem 1rem 3.7rem;
-    color: white;
+    background-color: var(--app-danger-subtle);
+    border: 1px solid var(--app-danger);
+    border-radius: var(--app-radius);
+    padding: 1rem 1rem 1rem 3.5rem;
+    color: var(--app-text);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23ef4444' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'%3E%3C/circle%3E%3Cline x1='12' y1='8' x2='12' y2='12'%3E%3C/line%3E%3Cline x1='12' y1='16' x2='12.01' y2='16'%3E%3C/line%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 1rem center;
+    background-size: 1.5rem;
 }
 
-    .blazor-error-boundary::after {
-        content: "An error has occurred."
-    }
+.blazor-error-boundary::after {
+    content: "An error has occurred.";
+}
 
+
+/* =========================================================
+   Loading Progress
+   ========================================================= */
 .loading-progress {
-    position: absolute;
+    position: relative;
     display: block;
-    width: 8rem;
-    height: 8rem;
-    inset: 20vh 0 auto 0;
-    margin: 0 auto 0 auto;
+    width: 5rem;
+    height: 5rem;
+    margin: 25vh auto 1.5rem auto;
 }
 
-    .loading-progress circle {
-        fill: none;
-        stroke: #e0e0e0;
-        stroke-width: 0.6rem;
-        transform-origin: 50% 50%;
-        transform: rotate(-90deg);
-    }
+.loading-progress circle {
+    fill: none;
+    stroke: var(--app-border);
+    stroke-width: 0.5rem;
+    transform-origin: 50% 50%;
+    transform: rotate(-90deg);
+}
 
-        .loading-progress circle:last-child {
-            stroke: #1b6ec2;
-            stroke-dasharray: calc(3.141 * var(--blazor-load-percentage, 0%) * 0.8), 500%;
-            transition: stroke-dasharray 0.05s ease-in-out;
-        }
+.loading-progress circle:last-child {
+    stroke: var(--app-accent);
+    stroke-dasharray: calc(3.141 * var(--blazor-load-percentage, 0%) * 0.8), 500%;
+    transition: stroke-dasharray 0.08s ease-in-out;
+}
 
 .loading-progress-text {
     position: absolute;
     text-align: center;
-    font-weight: bold;
-    inset: calc(20vh + 3.25rem) 0 auto 0.2rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--app-text-muted);
+    inset: calc(25vh + 5.5rem) 0 auto 0;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
 }
 
-    .loading-progress-text:after {
-        content: var(--blazor-load-percentage-text, "Loading");
-    }
-
-.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
-    color: var(--bs-secondary-color);
-    text-align: end;
+.loading-progress-text:after {
+    content: var(--blazor-load-percentage-text, "Loading");
 }
 
-.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
-    text-align: start;
-}
 
-/* ---- Plugin explorer ---- */
-
-/* Theme-aware accents that Bootstrap has no semantic variable for. */
-:root {
-    --esm-formid-color: #6f42c1;
-}
-
-[data-bs-theme="dark"] {
-    --esm-formid-color: #b8a1e3;
-}
-
+/* =========================================================
+   Plugin explorer
+   ========================================================= */
 .explorer-header {
     padding: 0.5rem 0;
-    border-bottom: 1px solid var(--bs-border-color);
-    margin-bottom: 0.5rem;
+    border-bottom: 1px solid var(--app-border);
+    margin-bottom: 0.75rem;
 }
 
 .explorer-layout {
     display: flex;
     gap: 1rem;
-    height: calc(100vh - 9.5rem);
+    height: calc(100vh - 10.5rem);
     min-height: 20rem;
 }
 
@@ -134,9 +594,10 @@ h1:focus {
     width: 42%;
     min-width: 24rem;
     overflow: auto;
-    border: 1px solid var(--bs-border-color);
-    border-radius: 0.375rem;
-    background: var(--bs-body-bg);
+    border: 1px solid var(--app-border);
+    border-radius: var(--app-radius);
+    background: var(--app-surface);
+    box-shadow: var(--app-shadow-sm);
     padding: 0.25rem 0;
 }
 
@@ -153,46 +614,48 @@ h1:focus {
     cursor: pointer;
     white-space: nowrap;
     font-size: 0.85rem;
-    padding: 0.1rem 0.5rem;
+    padding: 0.15rem 0.5rem;
+    transition: background-color var(--app-transition);
 }
 
 .tree-row:hover {
-    background: var(--bs-tertiary-bg);
+    background: var(--app-surface-raised);
 }
 
 .tree-row.selected {
-    background: var(--bs-primary-bg-subtle);
+    background: var(--app-accent-subtle);
 }
 
 .chevron {
     display: inline-block;
     width: 1rem;
     text-align: center;
-    color: var(--bs-secondary-color);
+    color: var(--app-text-muted);
     user-select: none;
     flex-shrink: 0;
 }
 
 .node-sig {
-    font-family: var(--bs-font-monospace, monospace);
+    font-family: var(--app-font-mono);
     font-weight: 600;
 }
 
 .node-formid {
-    font-family: var(--bs-font-monospace, monospace);
-    color: var(--esm-formid-color);
+    font-family: var(--app-font-mono);
+    color: var(--app-accent);
 }
 
 .node-name {
-    color: var(--bs-secondary-color);
+    color: var(--app-text-muted);
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 .node-extent {
     margin-left: auto;
-    color: var(--bs-tertiary-color);
-    font-family: var(--bs-font-monospace, monospace);
+    color: var(--app-text-muted);
+    opacity: 0.7;
+    font-family: var(--app-font-mono);
     font-size: 0.75rem;
 }
 
@@ -202,7 +665,7 @@ h1:focus {
 
 .tree-loading, .show-more {
     font-size: 0.8rem;
-    color: var(--bs-secondary-color);
+    color: var(--app-text-muted);
 }
 
 .detail-table th {
@@ -221,7 +684,7 @@ h1:focus {
 }
 
 .hex-view {
-    font-family: var(--bs-font-monospace, monospace);
+    font-family: var(--app-font-mono);
     font-size: 0.8rem;
     line-height: 1.35;
     overflow-x: auto;
@@ -234,9 +697,71 @@ h1:focus {
 }
 
 .hex-offset {
-    color: var(--bs-tertiary-color);
+    color: var(--app-text-muted);
+    opacity: 0.7;
 }
 
 .hex-ascii {
-    color: var(--bs-secondary-color);
+    color: var(--app-text-muted);
+}
+
+
+/* =========================================================
+   Form viewer & go-to
+   ========================================================= */
+.goto-input {
+    width: 7.5rem;
+}
+
+.formid-link {
+    text-decoration: none;
+}
+
+.formid-link:hover {
+    text-decoration: underline;
+}
+
+.formid-origin {
+    color: var(--app-text-muted);
+    opacity: 0.8;
+    font-size: 0.8em;
+    margin-left: 0.35rem;
+}
+
+.form-table th {
+    width: 12rem;
+    font-weight: 600;
+}
+
+.form-sig {
+    display: block;
+    font-family: var(--app-font-mono);
+    font-weight: 400;
+    font-size: 0.75rem;
+    color: var(--app-text-muted);
+    opacity: 0.8;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.struct-table {
+    width: auto;
+}
+
+.struct-table th {
+    width: 8rem;
+    font-weight: 500;
+    color: var(--app-text-muted);
+    padding: 0.1rem 0.75rem 0.1rem 0;
+    border: none;
+}
+
+.struct-table td {
+    padding: 0.1rem 0;
+    border: none;
+}
+
+.decoded-text {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
