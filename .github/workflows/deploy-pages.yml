@@ -26,13 +26,13 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
+          
+      - name: Install WASM workload
+        run: dotnet workload install wasm-tools
 
       - name: Run tests
         # Starfield.esm integration tests skip automatically: the resource is gitignored.
         run: dotnet test
-
-      - name: Install WASM workload
-        run: dotnet workload install wasm-tools
 
       - name: Publish (Release, WASM AOT)
         run: dotnet publish src/EsmParser.Web -c Release -o publish
