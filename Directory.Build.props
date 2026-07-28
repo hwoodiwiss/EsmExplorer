@@ -1,0 +1,17 @@
+<Project>
+  <PropertyGroup>
+    <AnalysisMode>Recommended</AnalysisMode>
+    <Copyright>Hugo Woodiwiss (c) 2023-$([System.DateTime]::Now.ToString(yyyy))</Copyright>
+    <Description></Description>
+    <Deterministic>true</Deterministic>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>preview</LangVersion>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <NoWarn>$(NoWarn);CA2007;CA1515</NoWarn>
+    <Nullable>enable</Nullable>
+    <RepositoryType>git</RepositoryType>
+    <TargetFramework>net11.0</TargetFramework>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <UseArtifactsOutput>true</UseArtifactsOutput>
+  </PropertyGroup>
+</Project>
