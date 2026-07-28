@@ -1,0 +1,27 @@
+@* Three-state color theme selector: light, dark, or follow the operating system. *@
+@inject ThemeService Theme
+
+<div class="btn-group btn-group-sm" role="group" aria-label="Color theme">
+    @foreach ((string value, string label) in Options)
+    {
+        <button type="button"
+                class="btn @(Theme.Preference == value ? "btn-secondary" : "btn-outline-secondary")"
+                aria-pressed="@(Theme.Preference == value)"
+                @onclick="() => SetAsync(value)">
+            @label
+        </button>
+    }
+</div>
+
+@code {
+    private static readonly (string Value, string Label)[] Options =
+    [
+        (ThemeService.Light, "Light"),
+        (ThemeService.Dark, "Dark"),
+        (ThemeService.Auto, "Auto"),
+    ];
+
+    protected override async Task OnInitializedAsync() => await Theme.InitializeAsync();
+
+    private async Task SetAsync(string preference) => await Theme.SetPreferenceAsync(preference);
+}

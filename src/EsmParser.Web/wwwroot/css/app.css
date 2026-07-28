@@ -6,10 +6,6 @@ h1:focus {
     outline: none;
 }
 
-a, .btn-link {
-    color: #0071c1;
-}
-
 .btn-primary {
     color: #fff;
     background-color: #1b6ec2;
@@ -17,7 +13,7 @@ a, .btn-link {
 }
 
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+  box-shadow: 0 0 0 0.1rem var(--bs-body-bg), 0 0 0 0.25rem #258cfb;
 }
 
 .content {
@@ -101,10 +97,6 @@ a, .btn-link {
         content: var(--blazor-load-percentage-text, "Loading");
     }
 
-code {
-    color: #c02d76;
-}
-
 .form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
     color: var(--bs-secondary-color);
     text-align: end;
@@ -112,4 +104,139 @@ code {
 
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
+}
+
+/* ---- Plugin explorer ---- */
+
+/* Theme-aware accents that Bootstrap has no semantic variable for. */
+:root {
+    --esm-formid-color: #6f42c1;
+}
+
+[data-bs-theme="dark"] {
+    --esm-formid-color: #b8a1e3;
+}
+
+.explorer-header {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--bs-border-color);
+    margin-bottom: 0.5rem;
+}
+
+.explorer-layout {
+    display: flex;
+    gap: 1rem;
+    height: calc(100vh - 9.5rem);
+    min-height: 20rem;
+}
+
+.explorer-tree {
+    width: 42%;
+    min-width: 24rem;
+    overflow: auto;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.375rem;
+    background: var(--bs-body-bg);
+    padding: 0.25rem 0;
+}
+
+.explorer-details {
+    flex: 1;
+    overflow: auto;
+    padding-right: 0.25rem;
+}
+
+.tree-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    white-space: nowrap;
+    font-size: 0.85rem;
+    padding: 0.1rem 0.5rem;
+}
+
+.tree-row:hover {
+    background: var(--bs-tertiary-bg);
+}
+
+.tree-row.selected {
+    background: var(--bs-primary-bg-subtle);
+}
+
+.chevron {
+    display: inline-block;
+    width: 1rem;
+    text-align: center;
+    color: var(--bs-secondary-color);
+    user-select: none;
+    flex-shrink: 0;
+}
+
+.node-sig {
+    font-family: var(--bs-font-monospace, monospace);
+    font-weight: 600;
+}
+
+.node-formid {
+    font-family: var(--bs-font-monospace, monospace);
+    color: var(--esm-formid-color);
+}
+
+.node-name {
+    color: var(--bs-secondary-color);
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.node-extent {
+    margin-left: auto;
+    color: var(--bs-tertiary-color);
+    font-family: var(--bs-font-monospace, monospace);
+    font-size: 0.75rem;
+}
+
+.node-badge {
+    font-size: 0.65rem;
+}
+
+.tree-loading, .show-more {
+    font-size: 0.8rem;
+    color: var(--bs-secondary-color);
+}
+
+.detail-table th {
+    width: 9.5rem;
+    font-weight: 600;
+}
+
+.field-table {
+    font-size: 0.85rem;
+}
+
+.field-preview {
+    max-width: 24rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.hex-view {
+    font-family: var(--bs-font-monospace, monospace);
+    font-size: 0.8rem;
+    line-height: 1.35;
+    overflow-x: auto;
+}
+
+.hex-line {
+    display: flex;
+    gap: 1.25rem;
+    white-space: pre;
+}
+
+.hex-offset {
+    color: var(--bs-tertiary-color);
+}
+
+.hex-ascii {
+    color: var(--bs-secondary-color);
 }

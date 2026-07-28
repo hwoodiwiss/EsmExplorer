@@ -1,0 +1,122 @@
+@* A paged hex dump of a byte range in the plugin file. *@
+
+@if (TotalLength == 0)
+{
+    <span class="text-muted">No bytes.</span>
+}
+else
+{
+    <div class="d-flex align-items-center gap-2 mb-2">
+        <button class="btn btn-outline-secondary btn-sm" disabled="@(_pageIndex == 0)" @onclick="() => MoveAsync(-1)">‹</button>
+        <span class="small font-monospace">
+            @DisplayFormat.Hex(WindowStart) – @DisplayFormat.Hex(WindowEnd) of @DisplayFormat.Bytes(TotalLength)
+            (page @(_pageIndex + 1)/@PageCount)
+        </span>
+        <button class="btn btn-outline-secondary btn-sm" disabled="@(_pageIndex >= PageCount - 1)" @onclick="() => MoveAsync(1)">›</button>
+    </div>
+
+    @if (_error is { } error)
+    {
+        <div class="alert alert-danger p-2 small font-monospace">@error.ToString()</div>
+    }
+    else if (_bytes is null)
+    {
+        <div class="spinner-border spinner-border-sm"></div>
+    }
+    else
+    {
+        <div class="hex-view">
+            @for (int line = 0; line < _bytes.Length; line += BytesPerLine)
+            {
+                int count = Math.Min(BytesPerLine, _bytes.Length - line);
+                <div class="hex-line">
+                    <span class="hex-offset">@((WindowStart + line).ToString("X8", System.Globalization.CultureInfo.InvariantCulture))</span>
+                    <span class="hex-bytes">@FormatHex(line, count)</span>
+                    <span class="hex-ascii">@FormatAscii(line, count)</span>
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    private const int PageSize = 512;
+    private const int BytesPerLine = 16;
+
+    private byte[]? _bytes;
+    private ParseError? _error;
+    private int _pageIndex;
+    private (long Offset, long Length) _loadedWindow = (-1, -1);
+
+    [Parameter, EditorRequired]
+    public required PluginFile Plugin { get; set; }
+
+    [Parameter]
+    public long StartOffset { get; set; }
+
+    [Parameter]
+    public long TotalLength { get; set; }
+
+    private int PageCount => (int)((TotalLength + PageSize - 1) / PageSize);
+
+    private long WindowStart => StartOffset + (long)_pageIndex * PageSize;
+
+    private long WindowEnd => Math.Min(WindowStart + PageSize, StartOffset + TotalLength);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedWindow != (StartOffset, TotalLength))
+        {
+            _pageIndex = 0;
+            _loadedWindow = (StartOffset, TotalLength);
+            await LoadPageAsync();
+        }
+    }
+
+    private async Task MoveAsync(int delta)
+    {
+        _pageIndex = Math.Clamp(_pageIndex + delta, 0, Math.Max(0, PageCount - 1));
+        await LoadPageAsync();
+    }
+
+    private async Task LoadPageAsync()
+    {
+        _bytes = null;
+        _error = null;
+        if (TotalLength == 0)
+        {
+            return;
+        }
+
+        ParseResult<byte[]> result = await Plugin.ReadBytesAsync(WindowStart, (int)(WindowEnd - WindowStart));
+        result.TryGet(out _bytes, out _error);
+    }
+
+    private string FormatHex(int start, int count)
+    {
+        var text = new System.Text.StringBuilder(BytesPerLine * 3);
+        for (int i = 0; i < BytesPerLine; i++)
+        {
+            if (i > 0)
+            {
+                text.Append(i == 8 ? "  " : " ");
+            }
+
+            text.Append(i < count ? _bytes![start + i].ToString("X2", System.Globalization.CultureInfo.InvariantCulture) : "  ");
+        }
+
+        return text.ToString();
+    }
+
+    private string FormatAscii(int start, int count)
+    {
+        var text = new System.Text.StringBuilder(count);
+        for (int i = 0; i < count; i++)
+        {
+            byte b = _bytes![start + i];
+            text.Append(b is >= 0x20 and <= 0x7E ? (char)b : '·');
+        }
+
+        return text.ToString();
+    }
+}

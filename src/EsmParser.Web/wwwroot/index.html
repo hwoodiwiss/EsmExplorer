@@ -4,8 +4,17 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EsmParser.Web</title>
+    <title>ESM Explorer</title>
     <base href="/" />
+    <script>
+        // Apply the persisted (or OS) theme before any rendering to avoid a flash
+        // of the wrong theme; js/theme.js takes over once the app is running.
+        (function () {
+            var stored = localStorage.getItem('esm-theme');
+            var dark = stored === 'dark' || (stored !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            document.documentElement.setAttribute('data-bs-theme', dark ? 'dark' : 'light');
+        })();
+    </script>
     <link rel="preload" id="webassembly" />
     <link rel="stylesheet" href="lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="css/app.css" />

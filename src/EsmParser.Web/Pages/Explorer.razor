@@ -1,0 +1,81 @@
+@page "/explore"
+@implements IDisposable
+@inject PluginExplorerState State
+
+<PageTitle>Explorer — ESM Explorer</PageTitle>
+
+@if (State.Plugin is not { } plugin)
+{
+    <div class="alert alert-info mt-3">
+        No plugin is loaded. <a href="">Open a plugin file</a> to start exploring.
+    </div>
+}
+else
+{
+    <div class="explorer-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">@plugin.Name <span class="text-muted">(@DisplayFormat.Bytes(plugin.Length))</span></h5>
+        <small class="text-muted font-monospace">@plugin.Header.Kind · @plugin.Header.RecordAndGroupCount.ToString("N0", System.Globalization.CultureInfo.InvariantCulture) records + groups</small>
+    </div>
+
+    <div class="explorer-layout">
+        <div class="explorer-tree">
+            <div class="tree-row @(State.SelectedNode == plugin.HeaderRecord ? "selected" : null)"
+                 @onclick="() => State.Select(plugin.HeaderRecord)">
+                <span class="chevron"></span>
+                <span class="node-sig">TES4</span>
+                <span class="node-name">Plugin Header</span>
+                <span class="node-extent">@DisplayFormat.Hex(plugin.HeaderRecord.Offset)</span>
+            </div>
+
+            @if (_topLevelError is { } topError)
+            {
+                <div class="alert alert-danger m-2 p-2 small font-monospace">@topError.ToString()</div>
+            }
+            else if (_topLevel is null)
+            {
+                <div class="p-3"><div class="spinner-border spinner-border-sm"></div> Reading top-level groups…</div>
+            }
+            else
+            {
+                @foreach (PluginNode node in _topLevel)
+                {
+                    <PluginTreeNode Node="node" State="State" />
+                }
+            }
+        </div>
+        <div class="explorer-details">
+            <NodeDetails Plugin="plugin" Node="State.SelectedNode" />
+        </div>
+    </div>
+}
+
+@code {
+    private IReadOnlyList<PluginNode>? _topLevel;
+    private ParseError? _topLevelError;
+    private PluginFile? _loadedFor;
+
+    protected override void OnInitialized() => State.Changed += StateHasChanged;
+
+    public void Dispose() => State.Changed -= StateHasChanged;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (State.Plugin is not { } plugin || ReferenceEquals(_loadedFor, plugin))
+        {
+            return;
+        }
+
+        _loadedFor = plugin;
+        _topLevel = null;
+        _topLevelError = null;
+
+        ParseResult<IReadOnlyList<PluginNode>> result = await plugin.GetTopLevelNodesAsync();
+        if (!result.TryGet(out IReadOnlyList<PluginNode>? nodes, out ParseError? error))
+        {
+            _topLevelError = error;
+            return;
+        }
+
+        _topLevel = nodes;
+    }
+}

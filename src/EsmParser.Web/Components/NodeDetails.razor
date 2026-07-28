@@ -1,0 +1,190 @@
+@* Details for the selected node: header metadata, exact file locations, fields, and raw bytes. *@
+
+@if (Node is null)
+{
+    <div class="text-muted p-4">Select a group or record to inspect it.</div>
+}
+else
+{
+    <div class="card mb-3">
+        <div class="card-header">
+            <strong>@Title</strong>
+        </div>
+        <div class="card-body py-2">
+            <table class="table table-sm mb-0 detail-table">
+                <tbody>
+                    <tr>
+                        <th scope="row">Header</th>
+                        <td class="font-monospace">@DisplayFormat.Hex(Node.Offset) – @DisplayFormat.Hex(Node.DataOffset) (24 B)</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">@(Node is GroupNode ? "Contents" : "Data")</th>
+                        <td class="font-monospace">@DisplayFormat.Hex(Node.DataOffset) – @DisplayFormat.Hex(Node.EndOffset) (@DisplayFormat.Bytes(Node.DataSize))</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Total</th>
+                        <td class="font-monospace">@DisplayFormat.Bytes(Node.TotalSize) · depth @Node.Depth</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @if (Node is GroupNode group)
+    {
+        <div class="card mb-3">
+            <div class="card-header">Group header</div>
+            <div class="card-body py-2">
+                <table class="table table-sm mb-0 detail-table">
+                    <tbody>
+                        <tr><th scope="row">Group type</th><td>@((int)group.Header.GroupType) — @group.Header.GroupType</td></tr>
+                        <tr><th scope="row">Label</th><td class="font-monospace">@DisplayFormat.Hex(group.Header.RawLabel) → @group.Header.GetLabelDescription()</td></tr>
+                        <tr><th scope="row">Timestamp</th><td class="font-monospace">@DisplayFormat.Hex(group.Header.Timestamp)</td></tr>
+                        <tr><th scope="row">Version control</th><td class="font-monospace">@DisplayFormat.Hex(group.Header.VersionControlInfo)</td></tr>
+                        <tr><th scope="row">Unknown</th><td class="font-monospace">@DisplayFormat.Hex(group.Header.Unknown)</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+    else if (Node is RecordNode record)
+    {
+        <div class="card mb-3">
+            <div class="card-header">Record header</div>
+            <div class="card-body py-2">
+                <table class="table table-sm mb-0 detail-table">
+                    <tbody>
+                        <tr>
+                            <th scope="row">Type</th>
+                            <td><span class="font-monospace">@record.Header.Signature.ToString()</span>@(record.TypeName is { } n ? $" — {n}" : string.Empty)</td>
+                        </tr>
+                        <tr><th scope="row">Form id</th><td class="font-monospace">@record.Header.FormId.ToString() (origin: @Plugin.Header.ResolveOrigin(record.Header.FormId, Plugin.Name))</td></tr>
+                        <tr>
+                            <th scope="row">Flags</th>
+                            <td>
+                                @if (record.Header.Flags == RecordFlags.None)
+                                {
+                                    <span class="text-muted">none</span>
+                                }
+                                @foreach (string name in record.Header.Flags.GetFlagNames())
+                                {
+                                    <span class="badge text-bg-secondary me-1">@name</span>
+                                }
+                            </td>
+                        </tr>
+                        <tr><th scope="row">Form version</th><td>@record.Header.FormVersion</td></tr>
+                        <tr><th scope="row">Timestamp</th><td>@(record.Header.TimestampAsDate?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) ?? DisplayFormat.Hex(record.Header.Timestamp))</td></tr>
+                        <tr><th scope="row">Version control</th><td class="font-monospace">@DisplayFormat.Hex(record.Header.VersionControlInfo)</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">
+                Fields
+                @if (_recordData is { WasCompressed: true })
+                {
+                    <span class="badge text-bg-info ms-2">inflated from zlib (@DisplayFormat.Bytes(_recordData.Data.Length) from @DisplayFormat.Bytes(record.DataSize))</span>
+                }
+            </div>
+            <div class="card-body py-2">
+                @if (_recordError is { } recordError)
+                {
+                    <div class="alert alert-danger p-2 small font-monospace mb-0">@recordError.ToString()</div>
+                }
+                else if (_recordData is null)
+                {
+                    <div class="spinner-border spinner-border-sm"></div>
+                }
+                else if (_recordData.Fields.Count == 0)
+                {
+                    <span class="text-muted">This record has no fields.</span>
+                }
+                else
+                {
+                    <table class="table table-sm table-striped mb-0 field-table">
+                        <thead>
+                            <tr><th>#</th><th>Field</th><th>Size</th><th>Location</th><th>Preview</th></tr>
+                        </thead>
+                        <tbody>
+                            @for (int i = 0; i < _recordData.Fields.Count; i++)
+                            {
+                                RecordField field = _recordData.Fields[i];
+                                <tr>
+                                    <td>@i</td>
+                                    <td class="font-monospace">
+                                        @field.Signature.ToString()
+                                        @if (field.HasExtendedSize)
+                                        {
+                                            <span class="badge text-bg-warning ms-1" title="Size comes from a preceding XXXX field">XXXX</span>
+                                        }
+                                    </td>
+                                    <td class="font-monospace">@field.Size</td>
+                                    <td class="font-monospace">
+                                        @if (field.AbsoluteDataOffset is { } absolute)
+                                        {
+                                            @DisplayFormat.Hex(absolute)
+                                        }
+                                        else
+                                        {
+                                            <span title="Offset within the decompressed record data">+@DisplayFormat.Hex(field.DataOffset)</span>
+                                        }
+                                    </td>
+                                    <td class="font-monospace field-preview">@DisplayFormat.FieldPreview(field)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="card mb-3">
+        <div class="card-header">Raw bytes (on disk)</div>
+        <div class="card-body py-2">
+            <HexViewer Plugin="Plugin" StartOffset="Node.Offset" TotalLength="Node.TotalSize" />
+        </div>
+    </div>
+}
+
+@code {
+    private RecordData? _recordData;
+    private ParseError? _recordError;
+    private PluginNode? _loadedFor;
+
+    [Parameter, EditorRequired]
+    public required PluginFile Plugin { get; set; }
+
+    [Parameter]
+    public PluginNode? Node { get; set; }
+
+    private string Title => Node switch
+    {
+        GroupNode group => $"Group: {group.Header.GetLabelDescription()}",
+        RecordNode record => $"Record: {record.Header.Signature} {record.Header.FormId}",
+        _ => string.Empty,
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (ReferenceEquals(_loadedFor, Node))
+        {
+            return;
+        }
+
+        _loadedFor = Node;
+        _recordData = null;
+        _recordError = null;
+
+        if (Node is RecordNode record)
+        {
+            ParseResult<RecordData> result = await Plugin.ReadRecordDataAsync(record);
+            if (ReferenceEquals(_loadedFor, Node))
+            {
+                result.TryGet(out _recordData, out _recordError);
+            }
+        }
+    }
+}

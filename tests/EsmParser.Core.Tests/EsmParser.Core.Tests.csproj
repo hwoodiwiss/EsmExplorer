@@ -5,20 +5,17 @@
     <Nullable>enable</Nullable>
     <OutputType>Exe</OutputType>
     <RootNamespace>EsmParser.Core.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <!-- CA1707: underscore-separated test names are the convention for readable test output. -->
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+    <PackageReference Include="TUnit" />
   </ItemGroup>
 
   <ItemGroup>
-    <Using Include="Xunit" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" />
-    <PackageReference Include="xunit.v3" />
-    <PackageReference Include="xunit.runner.visualstudio" />
+    <ProjectReference Include="..\..\src\EsmParser.Core\EsmParser.Core.csproj" />
   </ItemGroup>
 
 </Project>
