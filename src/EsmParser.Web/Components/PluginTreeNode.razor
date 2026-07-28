@@ -1,11 +1,12 @@
-@* One node in the lazily-expanded plugin tree. Groups load their children on first expansion. *@
+@* One node in the lazily-expanded plugin tree. Expansion state and children live in
+   the shared explorer state so that go-to-reference can expand paths programmatically. *@
 
-<div class="tree-row @(IsSelected ? "selected" : null)"
+<div id="tn-@Node.Offset" class="tree-row @(IsSelected ? "selected" : null)"
      style="padding-left:@(Node.Depth * 16 + 4)px"
      @onclick="SelectAsync">
     @if (Node is GroupNode group)
     {
-        <span class="chevron" @onclick="ToggleAsync" @onclick:stopPropagation="true">@(_expanded ? "▾" : "▸")</span>
+        <span class="chevron" @onclick="() => State.ToggleAsync(group)" @onclick:stopPropagation="true">@(IsExpanded ? "▾" : "▸")</span>
         <span class="node-sig">@group.Header.GetLabelDescription()</span>
         <span class="node-name">@GroupKindLabel(group)</span>
         <span class="node-extent">@DisplayFormat.Bytes(group.TotalSize)</span>
@@ -30,13 +31,13 @@
     }
 </div>
 
-@if (_expanded)
+@if (IsExpanded)
 {
-    @if (_childrenError is { } error)
+    @if (State.GetChildrenError(Node.Offset) is { } error)
     {
         <div class="alert alert-danger m-2 p-2 small font-monospace">@error.ToString()</div>
     }
-    else if (_children is null)
+    else if (State.GetCachedChildren(Node.Offset) is not { } children)
     {
         <div class="tree-loading" style="padding-left:@((Node.Depth + 1) * 16 + 4)px">
             <div class="spinner-border spinner-border-sm"></div> loading…
@@ -44,14 +45,14 @@
     }
     else
     {
-        @foreach (PluginNode child in _children.Take(_visibleCount))
+        @foreach (PluginNode child in children.Take(_visibleCount))
         {
             <PluginTreeNode Node="child" State="State" />
         }
-        @if (_children.Count > _visibleCount)
+        @if (children.Count > _visibleCount)
         {
             <button class="btn btn-link btn-sm show-more" style="margin-left:@((Node.Depth + 1) * 16 + 4)px" @onclick="ShowMore">
-                Show @Math.Min(PageSize, _children.Count - _visibleCount) more of @(_children.Count - _visibleCount) remaining…
+                Show @Math.Min(PageSize, children.Count - _visibleCount) more of @(children.Count - _visibleCount) remaining…
             </button>
         }
     }
@@ -60,9 +61,6 @@
 @code {
     private const int PageSize = 500;
 
-    private bool _expanded;
-    private IReadOnlyList<PluginNode>? _children;
-    private ParseError? _childrenError;
     private int _visibleCount = PageSize;
 
     [Parameter, EditorRequired]
@@ -71,7 +69,9 @@
     [Parameter, EditorRequired]
     public required PluginExplorerState State { get; set; }
 
-    private bool IsSelected => ReferenceEquals(State.SelectedNode, Node);
+    private bool IsSelected => State.SelectedNode?.Offset == Node.Offset;
+
+    private bool IsExpanded => State.IsExpanded(Node);
 
     private static string GroupKindLabel(GroupNode group) => group.Header.GroupType switch
     {
@@ -82,25 +82,9 @@
     private async Task SelectAsync()
     {
         State.Select(Node);
-        if (Node is GroupNode && !_expanded)
+        if (Node is GroupNode group && !IsExpanded)
         {
-            await ToggleAsync();
-        }
-    }
-
-    private async Task ToggleAsync()
-    {
-        _expanded = !_expanded;
-        if (_expanded && _children is null && _childrenError is null && Node is GroupNode group && State.Plugin is { } plugin)
-        {
-            ParseResult<IReadOnlyList<PluginNode>> result = await plugin.GetChildrenAsync(group);
-            if (!result.TryGet(out IReadOnlyList<PluginNode>? children, out ParseError? error))
-            {
-                _childrenError = error;
-                return;
-            }
-
-            _children = children;
+            await State.ToggleAsync(group);
         }
     }
 

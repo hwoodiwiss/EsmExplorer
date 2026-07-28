@@ -197,6 +197,32 @@ public sealed class StarfieldEsmTests
     }
 
     [Test]
+    public async Task References_Resolve_Through_The_FormId_Index()
+    {
+        await using var workspace = new PluginWorkspace();
+        PluginFile plugin = (await workspace.AddAsync(FileDataSource.Open(StarfieldEsm.FilePath!))).ShouldSucceed();
+
+        IReadOnlyList<PluginNode> top = (await plugin.GetTopLevelNodesAsync()).ShouldSucceed();
+        var expected = (RecordNode)(await plugin.GetChildrenAsync((GroupNode)top[0])).ShouldSucceed()[0];
+
+        // Builds the 3.8M-entry index, then resolves the first GMST by its own form id.
+        ResolveResult result = await workspace.ResolveAsync(plugin, expected.Header.FormId);
+        if (result is not ResolvedRecord resolved)
+        {
+            throw new InvalidOperationException($"Expected a resolved record, got {result}");
+        }
+
+        await Assert.That(resolved.Record.Offset).IsEqualTo(expected.Offset);
+        await Assert.That(resolved.Path.Count).IsEqualTo(2);
+        await Assert.That(((GroupNode)resolved.Path[0]).Header.LabelAsSignature).IsEqualTo(Signature.FromString("GMST"));
+        await Assert.That(workspace.HasIndex(plugin)).IsTrue();
+
+        // A second resolution reuses the cached index.
+        ResolveResult again = await workspace.ResolveAsync(plugin, expected.Header.FormId);
+        await Assert.That(again is ResolvedRecord).IsTrue();
+    }
+
+    [Test]
     public async Task Full_Structural_Statistics_Match_The_Independent_Scan()
     {
         await using PluginFile plugin = await OpenAsync();

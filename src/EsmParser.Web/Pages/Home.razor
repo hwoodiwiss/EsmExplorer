@@ -9,20 +9,21 @@
 <h1>Starfield Plugin Explorer</h1>
 
 <p class="text-muted">
-    Open a Starfield <code>.esm</code>, <code>.esp</code>, or <code>.esl</code> file to inspect its
-    records, groups, and their exact locations in the file data. Files are read in slices on demand,
-    so even multi-gigabyte masters open instantly.
+    Open Starfield <code>.esm</code>, <code>.esp</code>, or <code>.esl</code> files to inspect their
+    records, groups, and exact locations in the file data. Load a plugin together with its masters
+    to follow references between files. Files are read in slices on demand, so even multi-gigabyte
+    masters open instantly.
 </p>
 
 <div class="card mb-4">
     <div class="card-body">
-        <label class="form-label fw-bold" for="plugin-file">Plugin file</label>
-        <input id="plugin-file" class="form-control" type="file" accept=".esm,.esp,.esl" @ref="_fileInput" @onchange="OnFileSelectedAsync" disabled="@_loading" />
+        <label class="form-label fw-bold" for="plugin-file">Plugin files</label>
+        <input id="plugin-file" class="form-control" type="file" multiple accept=".esm,.esp,.esl" @ref="_fileInput" @onchange="OnFilesSelectedAsync" disabled="@_loading" />
         @if (_loading)
         {
             <div class="mt-3 d-flex align-items-center gap-2">
                 <div class="spinner-border spinner-border-sm" role="status"></div>
-                <span>Reading plugin header…</span>
+                <span>Reading plugin headers…</span>
             </div>
         }
     </div>
@@ -39,69 +40,60 @@
 @if (State.LastError is { } error)
 {
     <div class="alert alert-danger">
-        <strong>Could not open the plugin.</strong>
+        <strong>Could not open a plugin.</strong>
         <div class="font-monospace mt-1">@error.ToString()</div>
     </div>
 }
 
-@if (State.Plugin is { } plugin)
+@if (State.Workspace.Plugins.Count > 0)
 {
     <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <span><strong>@plugin.Name</strong> — @DisplayFormat.Bytes(plugin.Length)</span>
-            <a class="btn btn-primary btn-sm" href="explore">Explore records</a>
+            <span><strong>Loaded plugins</strong></span>
+            <a class="btn btn-primary btn-sm" href="explore">Open explorer</a>
         </div>
         <div class="card-body">
-            <div class="row">
-                <div class="col-md-6">
-                    <table class="table table-sm">
-                        <tbody>
-                            <tr><th scope="row">Kind</th><td>@plugin.Header.Kind</td></tr>
-                            <tr><th scope="row">HEDR version</th><td>@plugin.Header.Version.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)</td></tr>
-                            <tr><th scope="row">Form version</th><td>@plugin.Header.RecordHeader.FormVersion</td></tr>
-                            <tr><th scope="row">Records + groups</th><td>@plugin.Header.RecordAndGroupCount.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)</td></tr>
-                            <tr><th scope="row">Next form id</th><td class="font-monospace">@DisplayFormat.Hex(plugin.Header.NextFormId)</td></tr>
-                            <tr><th scope="row">Interior cells</th><td>@(plugin.Header.InteriorCellCount?.ToString("N0", System.Globalization.CultureInfo.InvariantCulture) ?? "—")</td></tr>
-                            <tr><th scope="row">Overridden forms</th><td>@plugin.Header.OverriddenForms.Count.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="col-md-6">
-                    <table class="table table-sm">
-                        <tbody>
-                            <tr><th scope="row">Author</th><td>@(plugin.Header.Author ?? "—")</td></tr>
-                            <tr><th scope="row">Description</th><td>@(plugin.Header.Description ?? "—")</td></tr>
-                            <tr>
-                                <th scope="row">Header flags</th>
-                                <td>
-                                    @foreach (string name in plugin.Header.RecordHeader.Flags.GetFlagNames())
-                                    {
-                                        <span class="badge text-bg-secondary me-1">@name</span>
-                                    }
-                                </td>
-                            </tr>
-                            <tr><th scope="row">Timestamp</th><td>@(plugin.Header.RecordHeader.TimestampAsDate?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) ?? "—")</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            @if (plugin.Header.Masters.Count > 0)
-            {
-                <h6 class="mt-2">Masters</h6>
-                <table class="table table-sm table-striped w-auto">
-                    <thead><tr><th>Index</th><th>File</th></tr></thead>
-                    <tbody>
-                        @foreach (MasterReference master in plugin.Header.Masters)
-                        {
-                            <tr>
-                                <td class="font-monospace">@master.Index.ToString("X2", System.Globalization.CultureInfo.InvariantCulture)</td>
-                                <td>@master.FileName</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            }
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr><th>Plugin</th><th>Size</th><th>Kind</th><th>Author</th><th>Masters</th><th></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (PluginFile plugin in State.Workspace.Plugins)
+                    {
+                        IReadOnlyList<string> missing = State.Workspace.GetMissingMasters(plugin);
+                        <tr>
+                            <td>
+                                <strong>@plugin.Name</strong>
+                                @if (ReferenceEquals(State.ActivePlugin, plugin))
+                                {
+                                    <span class="badge text-bg-primary ms-1">active</span>
+                                }
+                            </td>
+                            <td>@DisplayFormat.Bytes(plugin.Length)</td>
+                            <td>@plugin.Header.Kind</td>
+                            <td>@(plugin.Header.Author ?? "—")</td>
+                            <td>
+                                @if (plugin.Header.Masters.Count == 0)
+                                {
+                                    <span class="text-muted">none</span>
+                                }
+                                @foreach (MasterReference master in plugin.Header.Masters)
+                                {
+                                    bool isMissing = missing.Contains(master.FileName);
+                                    <span class="badge @(isMissing ? "text-bg-warning" : "text-bg-secondary") me-1"
+                                          title="@(isMissing ? "Not loaded: references into this master cannot be followed" : "Loaded")">
+                                        @master.FileName
+                                    </span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-outline-primary btn-sm" @onclick="() => ExploreAsync(plugin)">Explore</button>
+                                <button class="btn btn-outline-danger btn-sm" @onclick="() => State.RemoveAsync(plugin)">Remove</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
         </div>
     </div>
 }
@@ -115,21 +107,16 @@
 
     public void Dispose() => State.Changed -= StateHasChanged;
 
-    private async Task OnFileSelectedAsync()
+    private async Task OnFilesSelectedAsync()
     {
         _loading = true;
         _interopError = null;
         try
         {
-            BlobDataSource? source = await BlobDataSource.CreateFromInputAsync(JS, _fileInput);
-            if (source is null)
+            IReadOnlyList<BlobDataSource> sources = await BlobDataSource.CreateAllFromInputAsync(JS, _fileInput);
+            if (sources.Count > 0)
             {
-                return;
-            }
-
-            if (await State.LoadAsync(source))
-            {
-                Navigation.NavigateTo("explore");
+                await State.AddSourcesAsync(sources);
             }
         }
         catch (JSException exception)
@@ -140,5 +127,12 @@
         {
             _loading = false;
         }
+    }
+
+    private Task ExploreAsync(PluginFile plugin)
+    {
+        State.SetActive(plugin);
+        Navigation.NavigateTo("explore");
+        return Task.CompletedTask;
     }
 }

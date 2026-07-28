@@ -1,25 +1,73 @@
 @page "/explore"
 @implements IDisposable
 @inject PluginExplorerState State
+@inject IJSRuntime JS
 
 <PageTitle>Explorer — ESM Explorer</PageTitle>
 
-@if (State.Plugin is not { } plugin)
+@if (State.ActivePlugin is not { } plugin)
 {
     <div class="alert alert-info mt-3">
-        No plugin is loaded. <a href="">Open a plugin file</a> to start exploring.
+        No plugin is loaded. <a href="">Open plugin files</a> to start exploring.
     </div>
 }
 else
 {
-    <div class="explorer-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">@plugin.Name <span class="text-muted">(@DisplayFormat.Bytes(plugin.Length))</span></h5>
-        <small class="text-muted font-monospace">@plugin.Header.Kind · @plugin.Header.RecordAndGroupCount.ToString("N0", System.Globalization.CultureInfo.InvariantCulture) records + groups</small>
+    <div class="explorer-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="d-flex align-items-center gap-2">
+            @if (State.Workspace.Plugins.Count > 1)
+            {
+                <select class="form-select form-select-sm w-auto" value="@plugin.Name" @onchange="OnPluginSelected">
+                    @foreach (PluginFile candidate in State.Workspace.Plugins)
+                    {
+                        <option value="@candidate.Name">@candidate.Name</option>
+                    }
+                </select>
+            }
+            else
+            {
+                <h5 class="mb-0">@plugin.Name</h5>
+            }
+            <small class="text-muted font-monospace">@DisplayFormat.Bytes(plugin.Length) · @plugin.Header.Kind</small>
+        </div>
+        <form class="d-flex align-items-center gap-2" @onsubmit="GoToEnteredAsync">
+            <label class="col-form-label-sm mb-0" for="goto-formid">Go to form id</label>
+            <input id="goto-formid" class="form-control form-control-sm font-monospace goto-input"
+                   placeholder="0004F2B1" maxlength="8" @bind="_goToText" />
+            <button type="submit" class="btn btn-outline-primary btn-sm" disabled="@(State.BusyMessage is not null)">Go</button>
+        </form>
     </div>
+
+    @if (State.BusyMessage is { } busy)
+    {
+        <div class="d-flex align-items-center gap-2 my-2">
+            <div class="spinner-border spinner-border-sm" role="status"></div>
+            <span class="small">@busy</span>
+            @if (State.BusyProgress is { } fraction)
+            {
+                <div class="progress flex-grow-1" style="height: 0.5rem" role="progressbar" aria-valuenow="@((int)(fraction * 100))" aria-valuemin="0" aria-valuemax="100">
+                    <div class="progress-bar" style="width: @(((int)(fraction * 100)))%"></div>
+                </div>
+            }
+        </div>
+    }
+
+    @if (State.Notice is { } notice)
+    {
+        <div class="alert alert-warning alert-dismissible py-2 my-2">
+            @notice
+            <button type="button" class="btn-close" aria-label="Dismiss" @onclick="State.ClearNotice"></button>
+        </div>
+    }
+
+    @if (_invalidGoTo is { } invalid)
+    {
+        <div class="alert alert-warning py-2 my-2">"@invalid" is not a valid form id; enter up to 8 hex digits.</div>
+    }
 
     <div class="explorer-layout">
         <div class="explorer-tree">
-            <div class="tree-row @(State.SelectedNode == plugin.HeaderRecord ? "selected" : null)"
+            <div id="tn-0" class="tree-row @(State.SelectedNode?.Offset == 0 ? "selected" : null)"
                  @onclick="() => State.Select(plugin.HeaderRecord)">
                 <span class="chevron"></span>
                 <span class="node-sig">TES4</span>
@@ -27,55 +75,70 @@ else
                 <span class="node-extent">@DisplayFormat.Hex(plugin.HeaderRecord.Offset)</span>
             </div>
 
-            @if (_topLevelError is { } topError)
+            @if (State.GetTopLevelError() is { } topError)
             {
                 <div class="alert alert-danger m-2 p-2 small font-monospace">@topError.ToString()</div>
             }
-            else if (_topLevel is null)
+            else if (State.GetTopLevel() is not { } topLevel)
             {
                 <div class="p-3"><div class="spinner-border spinner-border-sm"></div> Reading top-level groups…</div>
             }
             else
             {
-                @foreach (PluginNode node in _topLevel)
+                @foreach (PluginNode node in topLevel)
                 {
                     <PluginTreeNode Node="node" State="State" />
                 }
             }
         </div>
         <div class="explorer-details">
-            <NodeDetails Plugin="plugin" Node="State.SelectedNode" />
+            <NodeDetails Plugin="plugin" Node="State.SelectedNode" State="State" />
         </div>
     </div>
 }
 
 @code {
-    private IReadOnlyList<PluginNode>? _topLevel;
-    private ParseError? _topLevelError;
-    private PluginFile? _loadedFor;
+    private string? _goToText;
+    private string? _invalidGoTo;
 
     protected override void OnInitialized() => State.Changed += StateHasChanged;
 
     public void Dispose() => State.Changed -= StateHasChanged;
 
-    protected override async Task OnParametersSetAsync()
+    protected override async Task OnParametersSetAsync() => await State.EnsureTopLevelAsync();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (State.Plugin is not { } plugin || ReferenceEquals(_loadedFor, plugin))
+        if (State.TakePendingScroll() is { } offset)
         {
+            await using var ui = await JS.InvokeAsync<IJSObjectReference>("import", "./js/ui.js");
+            await ui.InvokeVoidAsync("scrollToId", $"tn-{offset}");
+        }
+    }
+
+    private async Task OnPluginSelected(ChangeEventArgs args)
+    {
+        if (args.Value is string name && State.Workspace.FindByName(name) is { } plugin)
+        {
+            State.SetActive(plugin);
+            await State.EnsureTopLevelAsync();
+        }
+    }
+
+    private async Task GoToEnteredAsync()
+    {
+        _invalidGoTo = null;
+        string text = (_goToText ?? string.Empty).Trim().TrimStart('0', 'x', 'X');
+        if (!uint.TryParse(
+                string.IsNullOrEmpty(text) ? "0" : text,
+                System.Globalization.NumberStyles.HexNumber,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out uint value))
+        {
+            _invalidGoTo = _goToText;
             return;
         }
 
-        _loadedFor = plugin;
-        _topLevel = null;
-        _topLevelError = null;
-
-        ParseResult<IReadOnlyList<PluginNode>> result = await plugin.GetTopLevelNodesAsync();
-        if (!result.TryGet(out IReadOnlyList<PluginNode>? nodes, out ParseError? error))
-        {
-            _topLevelError = error;
-            return;
-        }
-
-        _topLevel = nodes;
+        await State.GoToAsync(new FormId(value));
     }
 }

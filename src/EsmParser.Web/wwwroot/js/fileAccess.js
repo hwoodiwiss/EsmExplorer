@@ -5,14 +5,18 @@
 const files = new Map();
 let nextId = 0;
 
-export function register(inputElement) {
-  const file = inputElement?.files?.[0];
-  if (!file) {
-    return null;
+export function registerAll(inputElement) {
+  const selected = inputElement?.files;
+  if (!selected || selected.length === 0) {
+    return [];
   }
-  const id = ++nextId;
-  files.set(id, file);
-  return { id: id, name: file.name, size: file.size };
+  const registered = [];
+  for (const file of selected) {
+    const id = ++nextId;
+    files.set(id, file);
+    registered.push({ id: id, name: file.name, size: file.size });
+  }
+  return registered;
 }
 
 export async function readSlice(id, offset, length) {

@@ -1,0 +1,24 @@
+@* A followable form reference: shows the id and its defining plugin, and jumps to the record on click. *@
+
+@if (FormId.IsNull)
+{
+    <span class="font-monospace text-muted">NULL</span>
+}
+else
+{
+    <a class="font-monospace formid-link" href="" title="Go to @Origin:@FormId.ToString()"
+       @onclick="() => State.GoToAsync(FormId)" @onclick:preventDefault="true">@FormId.ToString()</a>
+    <span class="formid-origin">@Origin</span>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public required FormId FormId { get; set; }
+
+    [Parameter, EditorRequired]
+    public required PluginExplorerState State { get; set; }
+
+    private string Origin => State.ActivePlugin is { } plugin
+        ? PluginWorkspace.GetFormKey(plugin, FormId).PluginName
+        : string.Empty;
+}

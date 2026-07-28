@@ -1,4 +1,5 @@
 @* Details for the selected node: header metadata, exact file locations, fields, and raw bytes. *@
+@using EsmParser.Core.Schema
 
 @if (Node is null)
 {
@@ -81,6 +82,54 @@ else
         </div>
 
         <div class="card mb-3">
+            <div class="card-header">Form</div>
+            <div class="card-body py-2">
+                @if (_recordError is not null)
+                {
+                    <span class="text-muted">Unavailable — see Fields below.</span>
+                }
+                else if (_decodedFields is null)
+                {
+                    <div class="spinner-border spinner-border-sm"></div>
+                }
+                else if (_decodedFields.Count == 0)
+                {
+                    <span class="text-muted">This record has no fields.</span>
+                }
+                else
+                {
+                    <table class="table table-sm mb-0 form-table">
+                        <tbody>
+                            @foreach (DecodedField field in _decodedFields)
+                            {
+                                <tr>
+                                    <th scope="row">
+                                        @field.Name
+                                        <span class="form-sig">@field.Source.Signature.ToString()</span>
+                                    </th>
+                                    <td>
+                                        @if (field.Value is RawValue raw)
+                                        {
+                                            <span class="font-monospace field-preview">@DisplayFormat.FieldPreview(field.Source)</span>
+                                            @if (raw.Note is { } note)
+                                            {
+                                                <div class="small text-warning-emphasis">@note</div>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <DecodedValueView Value="field.Value" State="State" />
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+
+        <div class="card mb-3">
             <div class="card-header">
                 Fields
                 @if (_recordData is { WasCompressed: true })
@@ -151,11 +200,15 @@ else
 
 @code {
     private RecordData? _recordData;
+    private IReadOnlyList<DecodedField>? _decodedFields;
     private ParseError? _recordError;
     private PluginNode? _loadedFor;
 
     [Parameter, EditorRequired]
     public required PluginFile Plugin { get; set; }
+
+    [Parameter, EditorRequired]
+    public required PluginExplorerState State { get; set; }
 
     [Parameter]
     public PluginNode? Node { get; set; }
@@ -176,6 +229,7 @@ else
 
         _loadedFor = Node;
         _recordData = null;
+        _decodedFields = null;
         _recordError = null;
 
         if (Node is RecordNode record)
@@ -183,7 +237,10 @@ else
             ParseResult<RecordData> result = await Plugin.ReadRecordDataAsync(record);
             if (ReferenceEquals(_loadedFor, Node))
             {
-                result.TryGet(out _recordData, out _recordError);
+                if (result.TryGet(out _recordData, out _recordError))
+                {
+                    _decodedFields = RecordDecoder.Decode(_recordData, Plugin.Header.IsLocalized);
+                }
             }
         }
     }

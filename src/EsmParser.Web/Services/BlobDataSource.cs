@@ -29,21 +29,30 @@ public sealed class BlobDataSource : IDataSource
     public long Length { get; }
 
     /// <summary>
-    /// Registers the file currently selected in <paramref name="fileInput"/> (an
-    /// <c>&lt;input type="file"&gt;</c> element), or returns <see langword="null"/> when none is selected.
+    /// Registers every file currently selected in <paramref name="fileInput"/> (an
+    /// <c>&lt;input type="file" multiple&gt;</c> element) as an independent data source.
     /// </summary>
-    public static async ValueTask<BlobDataSource?> CreateFromInputAsync(IJSRuntime jsRuntime, ElementReference fileInput)
+    public static async ValueTask<IReadOnlyList<BlobDataSource>> CreateAllFromInputAsync(IJSRuntime jsRuntime, ElementReference fileInput)
     {
         ArgumentNullException.ThrowIfNull(jsRuntime);
-        IJSObjectReference module = await jsRuntime.InvokeAsync<IJSObjectReference>("import", "./js/fileAccess.js");
-        BlobFileInfo? info = await module.InvokeAsync<BlobFileInfo?>("register", fileInput);
-        if (info is null)
+        IJSObjectReference registration = await jsRuntime.InvokeAsync<IJSObjectReference>("import", "./js/fileAccess.js");
+        try
         {
-            await module.DisposeAsync();
-            return null;
-        }
+            BlobFileInfo[] infos = await registration.InvokeAsync<BlobFileInfo[]>("registerAll", fileInput);
+            var sources = new List<BlobDataSource>(infos.Length);
+            foreach (BlobFileInfo info in infos)
+            {
+                // Each source owns its own module reference so lifetimes stay independent.
+                IJSObjectReference module = await jsRuntime.InvokeAsync<IJSObjectReference>("import", "./js/fileAccess.js");
+                sources.Add(new BlobDataSource(module, info.Id, info.Name, info.Size));
+            }
 
-        return new BlobDataSource(module, info.Id, info.Name, info.Size);
+            return sources;
+        }
+        finally
+        {
+            await registration.DisposeAsync();
+        }
     }
 
     public async ValueTask<ParseResult<Unit>> ReadExactlyAsync(long offset, Memory<byte> destination, CancellationToken cancellationToken = default)

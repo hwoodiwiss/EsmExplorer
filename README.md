@@ -84,6 +84,25 @@ memory (`MemoryDataSource`), files (`FileDataSource`), an LRU page cache decorat
 data being viewed) are resident in WASM memory; the rest of the file never crosses
 the JS boundary.
 
+### Cross-file references
+
+A `PluginWorkspace` holds multiple plugins at once. Stored form ids are file-relative
+(their top byte indexes the file's master list), so references are canonicalized to a
+`FormKey` — defining plugin plus 24-bit object id — and followed into whichever loaded
+file defines the form. Resolution outcomes are another union
+(`ResolvedRecord | MissingMaster | RecordNotFound | ParseError`). Lookups go through a
+per-plugin `FormIdIndex`: built lazily with one structural walk on the first resolution
+into a file, then held as sorted arrays (a few tens of MB even for the full master).
+
+### Editor-style form view
+
+`RecordDecoder` decodes fields into named, typed values (`DecodedValue`, also a union:
+text, localized-string index, numbers, references, structs) using a deliberately
+conservative schema registry — only format-stable fields are labelled (editor ids,
+names, bounds, keywords, placed-reference base/position, game-setting values typed by
+their EDID prefix, the TES4 header, …). Anything unknown or misshapen degrades to a
+raw view rather than risking a mislabel.
+
 ## Getting started
 
 The repository pins its SDK in `global.json` (.NET 11 preview). Then:
@@ -94,9 +113,14 @@ dotnet test             # full test suite
 dotnet run --project src/EsmParser.Web   # explorer at http://localhost:5246
 ```
 
-In the explorer, open any `.esm`/`.esp`/`.esl` file, then browse the tree: groups
-expand lazily, records show their header metadata, decoded flags, field table
-(signature, size, location, preview), and a paged hex dump of the on-disk bytes.
+In the explorer, open one or more `.esm`/`.esp`/`.esl` files (load a mod together with
+its masters to follow references between them), then browse the tree: groups expand
+lazily, records show a decoded editor-style form view alongside their header metadata,
+field table (signature, size, location, preview), and a paged hex dump of the on-disk
+bytes. Form references are links — following one jumps to the defining record, even in
+another loaded file, expanding the tree to it. A "Go to form id" box does the same for
+arbitrary ids. The first jump into a plugin builds its form-id index (a one-off full
+read, with progress); later jumps are instant.
 
 ## Testing
 

@@ -1,0 +1,57 @@
+@* Renders a schema-decoded field value; recursive for structs. *@
+@using EsmParser.Core.Schema
+
+@switch (Value)
+{
+    case TextValue text:
+        <span class="decoded-text">@text.Text</span>
+        break;
+    case LocalizedTextValue localized:
+        <span class="text-muted" title="An index into the game's .STRINGS localization files, which are separate from the plugin.">
+            Localized string <span class="font-monospace">@localized.Index.ToString("X8", System.Globalization.CultureInfo.InvariantCulture)</span>
+        </span>
+        break;
+    case BooleanValue boolean:
+        <span class="font-monospace">@(boolean.Value ? "True" : "False")</span>
+        break;
+    case IntegerValue integer:
+        <span class="font-monospace">@(integer.Hexadecimal
+            ? "0x" + integer.Value.ToString("X8", System.Globalization.CultureInfo.InvariantCulture)
+            : integer.Value.ToString(System.Globalization.CultureInfo.InvariantCulture))</span>
+        break;
+    case RealValue real:
+        <span class="font-monospace">@real.Value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture)</span>
+        break;
+    case ReferenceValue reference:
+        <FormIdLink FormId="reference.FormId" State="State" />
+        break;
+    case ReferenceListValue references:
+        <div class="d-flex flex-column">
+            @foreach (FormId formId in references.FormIds)
+            {
+                <span><FormIdLink FormId="formId" State="State" /></span>
+            }
+        </div>
+        break;
+    case StructValue structValue:
+        <table class="table table-sm table-borderless mb-0 struct-table">
+            <tbody>
+                @foreach (DecodedMember member in structValue.Members)
+                {
+                    <tr>
+                        <th scope="row">@member.Name</th>
+                        <td><DecodedValueView Value="member.Value" State="State" /></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        break;
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public required DecodedValue Value { get; set; }
+
+    [Parameter, EditorRequired]
+    public required PluginExplorerState State { get; set; }
+}

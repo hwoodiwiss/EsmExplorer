@@ -165,6 +165,78 @@ public sealed class PluginFile : IAsyncDisposable
         return found is null ? new RecordNotFound() : new RecordFound(found);
     }
 
+    /// <summary>
+    /// Computes the chain of nodes from the top level down to the node whose header starts
+    /// at <paramref name="offset"/> (the chain's last element). Only sibling runs along one
+    /// descent path are scanned, so this stays cheap even for huge files. Fails when the
+    /// offset does not land exactly on a node boundary.
+    /// </summary>
+    public async ValueTask<ParseResult<IReadOnlyList<PluginNode>>> GetPathToOffsetAsync(long offset, CancellationToken cancellationToken = default)
+    {
+        if (offset == 0)
+        {
+            return new Success<IReadOnlyList<PluginNode>>([HeaderRecord]);
+        }
+
+        var path = new List<PluginNode>();
+        long start = HeaderRecord.EndOffset;
+        long end = _source.Length;
+        int depth = 0;
+
+        while (true)
+        {
+            if (offset < start || offset >= end)
+            {
+                return new ParseError(
+                    ParseErrorKind.StructureInvalid,
+                    Invariant($"Offset 0x{offset:X} is outside the container being descended (0x{start:X} – 0x{end:X})."),
+                    offset);
+            }
+
+            ParseResult<IReadOnlyList<PluginNode>> siblings = await ParseSiblingsAsync(_source, start, end, depth, cancellationToken);
+            if (!siblings.TryGet(out IReadOnlyList<PluginNode>? nodes, out ParseError? error))
+            {
+                return error;
+            }
+
+            PluginNode? containing = null;
+            foreach (PluginNode node in nodes)
+            {
+                if (node.Offset <= offset && offset < node.EndOffset)
+                {
+                    containing = node;
+                    break;
+                }
+            }
+
+            if (containing is null)
+            {
+                return new ParseError(
+                    ParseErrorKind.StructureInvalid,
+                    Invariant($"No node contains offset 0x{offset:X}."),
+                    offset);
+            }
+
+            path.Add(containing);
+            if (containing.Offset == offset)
+            {
+                return new Success<IReadOnlyList<PluginNode>>(path);
+            }
+
+            if (containing is not GroupNode group)
+            {
+                return new ParseError(
+                    ParseErrorKind.StructureInvalid,
+                    Invariant($"Offset 0x{offset:X} points inside the data of record {containing}, not at a node boundary."),
+                    offset);
+            }
+
+            start = group.DataOffset;
+            end = group.EndOffset;
+            depth = group.Depth + 1;
+        }
+    }
+
     /// <summary>Computes structural statistics for the whole file or a single subtree.</summary>
     public async ValueTask<ParseResult<PluginStatistics>> ComputeStatisticsAsync(GroupNode? root = null, CancellationToken cancellationToken = default)
     {
@@ -220,7 +292,7 @@ public sealed class PluginFile : IAsyncDisposable
     /// Depth-first structural walk (sibling order within each container; container order
     /// across the stack is unspecified). The visitor returns <see langword="false"/> to stop early.
     /// </summary>
-    private async ValueTask<ParseResult<Unit>> WalkAsync(GroupNode? root, Func<PluginNode, bool> visit, CancellationToken cancellationToken)
+    internal async ValueTask<ParseResult<Unit>> WalkAsync(GroupNode? root, Func<PluginNode, bool> visit, CancellationToken cancellationToken)
     {
         var pending = new Stack<(long Start, long End, int Depth)>();
         pending.Push(root is null
