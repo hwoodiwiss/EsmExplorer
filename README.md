@@ -139,6 +139,34 @@ NIF block structure. Rendering uses the `NifViewer.Blazor` package, consumed fro
 the local feed at `.packages/` (a `LocalPackages` source with a package-source
 mapping in `nuget.config`), so `dotnet restore` works offline.
 
+### Preparing Starfield resources
+
+The repository includes `scripts/Unpack-StarfieldResources.ps1`. It uses
+Archive2 to extract every `Starfield - *.ba2` archive from the Starfield
+installation into `StarfieldResources`; duplicate paths are overwritten by
+later archives.
+
+```powershell
+.\scripts\Unpack-StarfieldResources.ps1
+# Optional custom installation/output locations:
+.\scripts\Unpack-StarfieldResources.ps1 `
+    -StarfieldInstallDir 'D:\Games\Starfield' `
+    -OutputDirectory 'C:\Users\me\Documents\StarfieldResources'
+```
+
+Archive2 is normally at
+`<Starfield Install Dir>\Tools\Archive2\Archive2.exe`. The default script
+assumes the Steam installation at
+`C:\Program Files (x86)\Steam\steamapps\common\Starfield`.
+
+For accurate Starfield material definitions, install the Creation Kit and
+extract `<Starfield Install Dir>\Tools\ContentResources.zip`. The material
+files are under its `Materials` directory. Copy or extract that directory into
+the matching `materials` directory under the data root selected in the viewer.
+The viewer also supports heuristic texture matching when loose `.mat` files
+are unavailable, but the Creation Kit material files provide the most accurate
+texture assignments.
+
 ## Testing
 
 ```shell
