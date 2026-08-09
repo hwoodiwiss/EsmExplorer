@@ -23,6 +23,16 @@
         <button class="btn btn-outline-primary btn-sm" @onclick="PickDataRootAsync" disabled="@_loading">
             Choose data root…
         </button>
+        <span class="data-root-help" tabindex="0" role="note" aria-label="Data root setup instructions">
+            <span class="data-root-help-icon">i</span>
+            <span class="data-root-help-popover">
+                <strong>Data root setup</strong>
+                <span>1. Extract the Starfield BA2 files into a resource folder.</span>
+                <span>2. Extract Creation Kit <code>ContentResources.zip</code> and copy its <code>Materials</code> folder into the resource folder.</span>
+                <span>3. Choose that folder here. Files are read only when needed.</span>
+                <a href="https://github.com/hwoodiwiss/EsmParser#preparing-starfield-resources" target="_blank" rel="noopener noreferrer">Open full instructions</a>
+            </span>
+        </span>
     </div>
 </div>
 
