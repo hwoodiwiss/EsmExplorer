@@ -163,6 +163,9 @@
         finally
         {
             _loading = false;
+            // Loads triggered outside the normal event pipeline (e.g. from
+            // OnAfterRenderAsync) don't re-render automatically.
+            StateHasChanged();
         }
     }
 }

@@ -121,7 +121,7 @@ else
                                             <DecodedValueView Value="field.Value" State="State" />
                                             @if (GetModelPath(field) is { } modelPath)
                                             {
-                                                <ModelViewLink Path="modelPath" />
+                                                <ModelViewLink Path="@modelPath" />
                                             }
                                         }
                                     </td>
