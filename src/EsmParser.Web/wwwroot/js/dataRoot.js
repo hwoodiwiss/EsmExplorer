@@ -30,7 +30,7 @@ export async function resolveFile(path) {
   if (!rootHandle || !path) {
     return null;
   }
-  const segments = path.split('/').filter((segment) => segment.length > 0);
+  const segments = normalizeDataPath(path).split('/').filter((segment) => segment.length > 0);
   let directory = rootHandle;
   for (let i = 0; i < segments.length - 1; i++) {
     directory = await getChild(directory, segments[i], false);
@@ -44,6 +44,14 @@ export async function resolveFile(path) {
   }
   const buffer = await (await fileHandle.getFile()).arrayBuffer();
   return new Uint8Array(buffer);
+}
+
+function normalizeDataPath(path) {
+  let normalized = path.replaceAll('\\', '/').toLowerCase();
+  while (normalized.startsWith('data/')) {
+    normalized = normalized.slice(5);
+  }
+  return normalized;
 }
 
 async function getChild(directory, name, isFile) {

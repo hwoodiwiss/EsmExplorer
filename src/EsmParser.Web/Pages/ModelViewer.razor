@@ -131,6 +131,10 @@
         try
         {
             string normalized = modelPath.Replace('\\', '/').TrimStart('/').ToLowerInvariant();
+            while (normalized.StartsWith("data/", StringComparison.Ordinal))
+            {
+                normalized = normalized[5..];
+            }
             string[] candidates = normalized.StartsWith("meshes/", StringComparison.Ordinal)
                 ? [normalized]
                 : [$"meshes/{normalized}", normalized];
