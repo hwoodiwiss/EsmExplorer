@@ -1,0 +1,160 @@
+@page "/model"
+@using System.Text.Json
+@using NifViewer.Blazor
+@inject GameDataService GameData
+@inject ModelViewerState ViewerState
+@inject NifViewerInterop Interop
+
+<PageTitle>Model Viewer — ESM Explorer</PageTitle>
+
+<div class="explorer-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <div class="d-flex align-items-center gap-2">
+        <h5 class="mb-0">Model Viewer</h5>
+        @if (GameData.RootName is { } rootName)
+        {
+            <span class="badge text-bg-secondary" title="Assets are resolved from this folder">@rootName</span>
+        }
+    </div>
+    <button class="btn btn-outline-primary btn-sm" @onclick="PickDataRootAsync" disabled="@_loading">
+        Choose data root…
+    </button>
+</div>
+
+@if (_unsupported)
+{
+    <div class="alert alert-warning py-2 my-2">
+        This browser does not support the File System Access API, which is required to read game
+        data folders. Use a Chromium-based browser.
+    </div>
+}
+
+@if (_status is { } status)
+{
+    <div class="d-flex align-items-center gap-2 my-2">
+        @if (_loading)
+        {
+            <div class="spinner-border spinner-border-sm" role="status"></div>
+        }
+        <span class="small">@status</span>
+    </div>
+}
+
+<div class="card mb-3">
+    <div class="card-header">
+        <strong>@(_modelName ?? "No model loaded")</strong>
+    </div>
+    <div class="card-body p-0">
+        <NifViewerCanvas @ref="_viewer" />
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header">
+        <button class="btn btn-link btn-sm p-0 text-decoration-none" @onclick="() => _structureOpen = !_structureOpen">
+            @(_structureOpen ? "▾" : "▸") NIF structure
+        </button>
+    </div>
+    @if (_structureOpen)
+    {
+        <div class="card-body py-2">
+            <NifStructureView Structure="_structure" />
+        </div>
+    }
+</div>
+
+@code {
+    private NifViewerCanvas _viewer = default!;
+    private JsonElement? _structure;
+    private string? _modelName;
+    private string? _status;
+    private string? _pendingPath;
+    private bool _loading;
+    private bool _unsupported;
+    private bool _structureOpen;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _unsupported = !await GameData.InitializeAsync();
+        _pendingPath = ViewerState.TakeRequest();
+        if (_pendingPath is not null)
+        {
+            _status = GameData.HasRoot
+                ? null
+                : $"Choose your game Data folder to load '{_pendingPath}'.";
+        }
+        else if (!_unsupported)
+        {
+            _status = "Open a record with a MODL field in the explorer and click View, or choose a data root.";
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && _pendingPath is not null && GameData.HasRoot)
+        {
+            await LoadModelAsync(_pendingPath);
+        }
+    }
+
+    private async Task PickDataRootAsync()
+    {
+        if (_unsupported || !await GameData.PickAsync())
+        {
+            return;
+        }
+
+        if (_pendingPath is not null)
+        {
+            await LoadModelAsync(_pendingPath);
+        }
+        else
+        {
+            _status = $"Data root '{GameData.RootName}' selected.";
+        }
+    }
+
+    private async Task LoadModelAsync(string modelPath)
+    {
+        _loading = true;
+        _status = $"Loading {modelPath}…";
+        StateHasChanged();
+
+        try
+        {
+            string normalized = modelPath.Replace('\\', '/').TrimStart('/').ToLowerInvariant();
+            string[] candidates = normalized.StartsWith("meshes/", StringComparison.Ordinal)
+                ? [normalized]
+                : [$"meshes/{normalized}", normalized];
+
+            byte[]? nif = null;
+            string? found = null;
+            foreach (string candidate in candidates)
+            {
+                nif = await GameData.ResolveAsync(candidate);
+                if (nif is not null)
+                {
+                    found = candidate;
+                    break;
+                }
+            }
+
+            if (nif is null)
+            {
+                _status = $"Model not found in '{GameData.RootName}'. Tried: {string.Join(", ", candidates)}.";
+                return;
+            }
+
+            _pendingPath = null;
+            _modelName = found;
+            NifLoadResult result = await _viewer.LoadNifAsync(found!, nif, GameData);
+            _structure = await Interop.ParseNifStructureAsync(nif);
+            _status = result.Missing.Count == 0
+                ? $"Loaded {found}."
+                : $"Loaded {found}; {result.Missing.Count} dependencies missing: {string.Join(", ", result.Missing)}.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

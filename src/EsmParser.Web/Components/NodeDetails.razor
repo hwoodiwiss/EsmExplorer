@@ -119,6 +119,10 @@ else
                                         else
                                         {
                                             <DecodedValueView Value="field.Value" State="State" />
+                                            @if (GetModelPath(field) is { } modelPath)
+                                            {
+                                                <ModelViewLink Path="modelPath" />
+                                            }
                                         }
                                     </td>
                                 </tr>
@@ -219,6 +223,14 @@ else
         RecordNode record => $"Record: {record.Header.Signature} {record.Header.FormId}",
         _ => string.Empty,
     };
+
+    /// <summary>A viewable model path: a MODL field's text, or any text ending in .nif.</summary>
+    private static string? GetModelPath(DecodedField field) =>
+        field.Value is TextValue text
+        && (field.Source.Signature.ToString() == "MODL"
+            || text.Text.EndsWith(".nif", StringComparison.OrdinalIgnoreCase))
+            ? text.Text
+            : null;
 
     protected override async Task OnParametersSetAsync()
     {

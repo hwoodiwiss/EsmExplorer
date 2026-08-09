@@ -15,6 +15,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Gateway" PrivateAssets="all" />
+    <PackageReference Include="NifViewer.Blazor" />
   </ItemGroup>
 
   <ItemGroup>

@@ -9,5 +9,8 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddScoped<PluginExplorerState>();
 builder.Services.AddScoped<ThemeService>();
+builder.Services.AddScoped<GameDataService>();
+builder.Services.AddScoped<ModelViewerState>();
+builder.Services.AddScoped<NifViewer.Blazor.NifViewerInterop>();
 
 await builder.Build().RunAsync();

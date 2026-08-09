@@ -122,6 +122,19 @@ another loaded file, expanding the tree to it. A "Go to form id" box does the sa
 arbitrary ids. The first jump into a plugin builds its form-id index (a one-off full
 read, with progress); later jumps are instant.
 
+## Model viewer
+
+Records whose `MODL` field (or any text field ending in `.nif`) names a model get a
+**View** link that opens the built-in NIF model viewer (`/model`, also in the nav).
+The viewer needs read access to your game `Data` folder (File System Access API —
+Chromium-based browsers): click **Choose data root…** and pick it once per session.
+Model paths are resolved case-insensitively, trying `meshes/<path>` then `<path>`,
+and external dependencies (`geometries/*.mesh`, `materials/*.mat`, `textures/*.dds`)
+are streamed from the same folder on demand. A collapsible panel shows the parsed
+NIF block structure. Rendering uses the `NifViewer.Blazor` package, consumed from
+the local feed at `.packages/` (a `LocalPackages` source with a package-source
+mapping in `nuget.config`), so `dotnet restore` works offline.
+
 ## Testing
 
 ```shell
