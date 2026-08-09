@@ -130,6 +130,8 @@
             string? found = null;
             foreach (string candidate in candidates)
             {
+                _status = $"Searching for {candidate}…";
+                StateHasChanged();
                 nif = await GameData.ResolveAsync(candidate);
                 if (nif is not null)
                 {
@@ -146,11 +148,17 @@
 
             _pendingPath = null;
             _modelName = found;
+            _status = $"Loading {found} and dependencies…";
+            StateHasChanged();
             NifLoadResult result = await _viewer.LoadNifAsync(found!, nif, GameData);
             _structure = await Interop.ParseNifStructureAsync(nif);
             _status = result.Missing.Count == 0
                 ? $"Loaded {found}."
                 : $"Loaded {found}; {result.Missing.Count} dependencies missing: {string.Join(", ", result.Missing)}.";
+        }
+        catch (Exception ex)
+        {
+            _status = $"Failed to load {modelPath}: {ex.Message}";
         }
         finally
         {
