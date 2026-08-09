@@ -15,9 +15,15 @@
             <span class="badge text-bg-secondary" title="Assets are resolved from this folder">@rootName</span>
         }
     </div>
-    <button class="btn btn-outline-primary btn-sm" @onclick="PickDataRootAsync" disabled="@_loading">
-        Choose data root…
-    </button>
+    <div class="d-flex align-items-center gap-2">
+        <label class="btn btn-outline-secondary btn-sm mb-0" title="Load a .nif file directly from disk">
+            Open .nif…
+            <InputFile OnChange="LoadNifFileAsync" accept=".nif" class="d-none" disabled="@_loading" />
+        </label>
+        <button class="btn btn-outline-primary btn-sm" @onclick="PickDataRootAsync" disabled="@_loading">
+            Choose data root…
+        </button>
+    </div>
 </div>
 
 @if (_unsupported)
@@ -45,6 +51,9 @@
     </div>
     <div class="card-body p-0">
         <NifViewerCanvas @ref="_viewer" />
+    </div>
+    <div class="card-footer p-2">
+        <NifViewerControls Viewer="_viewer" />
     </div>
 </div>
 
@@ -147,14 +156,8 @@
             }
 
             _pendingPath = null;
-            _modelName = found;
             _status = $"Loading {found} and dependencies…";
-            StateHasChanged();
-            NifLoadResult result = await _viewer.LoadNifAsync(found!, nif, GameData);
-            _structure = await Interop.ParseNifStructureAsync(nif);
-            _status = result.Missing.Count == 0
-                ? $"Loaded {found}."
-                : $"Loaded {found}; {result.Missing.Count} dependencies missing: {string.Join(", ", result.Missing)}.";
+            await CompleteLoadAsync(found!, nif);
         }
         catch (Exception ex)
         {
@@ -166,6 +169,55 @@
             // Loads triggered outside the normal event pipeline (e.g. from
             // OnAfterRenderAsync) don't re-render automatically.
             StateHasChanged();
+        }
+    }
+
+    private async Task LoadNifFileAsync(InputFileChangeEventArgs e)
+    {
+        const long MaxNifSize = 256 * 1024 * 1024;
+        _loading = true;
+        _status = $"Reading {e.File.Name}…";
+        StateHasChanged();
+
+        try
+        {
+            using var buffer = new MemoryStream();
+            await using (Stream stream = e.File.OpenReadStream(maxAllowedSize: MaxNifSize))
+            {
+                await stream.CopyToAsync(buffer);
+            }
+
+            await CompleteLoadAsync(e.File.Name, buffer.ToArray());
+        }
+        catch (Exception ex)
+        {
+            _status = $"Failed to load {e.File.Name}: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    // Shared tail of both load paths: render the NIF (resolving dependencies
+    // from the granted data root, if any), parse its structure, and report.
+    private async Task CompleteLoadAsync(string name, byte[] nif)
+    {
+        _modelName = name;
+        StateHasChanged();
+        NifLoadResult result = await _viewer.LoadNifAsync(name, nif, GameData);
+        _structure = await Interop.ParseNifStructureAsync(nif);
+        if (result.Missing.Count == 0)
+        {
+            _status = $"Loaded {name}.";
+        }
+        else
+        {
+            string hint = GameData.HasRoot
+                ? string.Empty
+                : " Choose a data root to resolve external meshes and textures.";
+            _status = $"Loaded {name}; {result.Missing.Count} dependencies missing: {string.Join(", ", result.Missing)}.{hint}";
         }
     }
 }

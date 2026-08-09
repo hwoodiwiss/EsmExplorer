@@ -130,7 +130,11 @@ The viewer needs read access to your game `Data` folder (File System Access API 
 Chromium-based browsers): click **Choose data root…** and pick it once per session.
 Model paths are resolved case-insensitively, trying `meshes/<path>` then `<path>`,
 and external dependencies (`geometries/*.mesh`, `materials/*.mat`, `textures/*.dds`)
-are streamed from the same folder on demand. A collapsible panel shows the parsed
+are streamed from the same folder on demand. Arbitrary `.nif` files can also be
+loaded directly via **Open .nif…** (dependencies still resolve from the data root
+when one is granted; without it, external meshes/textures are reported missing).
+A control bar under the canvas adjusts camera speed, light colour/direction,
+intensity, ambient, and auto-orbit. A collapsible panel shows the parsed
 NIF block structure. Rendering uses the `NifViewer.Blazor` package, consumed from
 the local feed at `.packages/` (a `LocalPackages` source with a package-source
 mapping in `nuget.config`), so `dotnet restore` works offline.
