@@ -491,3 +491,6 @@ $RECYCLE.BIN/
 *.esm
 *.esl
 TestResults/
+
+# Local package feed (see nuget.config)
+!.packages/*.nupkg
