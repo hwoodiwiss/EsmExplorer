@@ -111,8 +111,19 @@ else
     {
         if (State.TakePendingScroll() is { } offset)
         {
-            await using var ui = await JS.InvokeAsync<IJSObjectReference>("import", "./js/ui.js");
-            await ui.InvokeVoidAsync("scrollToId", $"tn-{offset}");
+            try
+            {
+                await using var ui = await JS.InvokeAsync<IJSObjectReference>("import", "./js/ui.js");
+                await ui.InvokeVoidAsync("scrollToId", $"tn-{offset}");
+            }
+            catch (JSException)
+            {
+                // Scroll is best-effort; a JS error should not break the component.
+            }
+            catch (OperationCanceledException)
+            {
+                // Component may have been disposed or navigation occurred before the scroll completed.
+            }
         }
     }
 

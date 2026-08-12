@@ -191,7 +191,6 @@
         const long MaxNifSize = 256 * 1024 * 1024;
         _loading = true;
         _status = $"Reading {e.File.Name}…";
-        StateHasChanged();
 
         try
         {
@@ -210,7 +209,6 @@
         finally
         {
             _loading = false;
-            StateHasChanged();
         }
     }
 

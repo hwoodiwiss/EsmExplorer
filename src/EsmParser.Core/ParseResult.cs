@@ -68,9 +68,9 @@ public union ParseResult<T>(Success<T>, ParseError)
     /// </summary>
     public bool TryGet([MaybeNullWhen(false)] out T value, [NotNullWhen(false)] out ParseError? error)
     {
-        if (this is Success<T>(var success))
+        if (Value is Success<T> success)
         {
-            value = success;
+            value = success.Value;
             error = null;
             return true;
         }

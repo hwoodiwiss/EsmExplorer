@@ -22,22 +22,36 @@ public sealed class GameDataService(IJSRuntime jsRuntime) : INifDependencyResolv
 
     public async Task<bool> InitializeAsync()
     {
-        var module = await GetModuleAsync();
-        IsSupported ??= await module.InvokeAsync<bool>("isSupported");
-        return IsSupported.Value;
+        try
+        {
+            var module = await GetModuleAsync();
+            IsSupported ??= await module.InvokeAsync<bool>("isSupported");
+            return IsSupported.Value;
+        }
+        catch (JSDisconnectedException)
+        {
+            return false;
+        }
     }
 
     /// <summary>Shows the directory picker; returns true when a folder was granted.</summary>
     public async Task<bool> PickAsync()
     {
-        var module = await GetModuleAsync();
-        string? name = await module.InvokeAsync<string?>("pickDataRoot");
-        if (name is not null)
+        try
         {
-            RootName = name;
-        }
+            var module = await GetModuleAsync();
+            string? name = await module.InvokeAsync<string?>("pickDataRoot");
+            if (name is not null)
+            {
+                RootName = name;
+            }
 
-        return name is not null;
+            return name is not null;
+        }
+        catch (JSDisconnectedException)
+        {
+            return false;
+        }
     }
 
     /// <summary>Resolves a data-relative path (lowercase, forward slashes) to file bytes, or null.</summary>
@@ -48,8 +62,15 @@ public sealed class GameDataService(IJSRuntime jsRuntime) : INifDependencyResolv
             return null;
         }
 
-        var module = await GetModuleAsync();
-        return await module.InvokeAsync<byte[]?>("resolveFile", path);
+        try
+        {
+            var module = await GetModuleAsync();
+            return await module.InvokeAsync<byte[]?>("resolveFile", path);
+        }
+        catch (JSDisconnectedException)
+        {
+            return null;
+        }
     }
 
     public async ValueTask DisposeAsync()
@@ -69,6 +90,15 @@ public sealed class GameDataService(IJSRuntime jsRuntime) : INifDependencyResolv
         }
     }
 
-    private async ValueTask<IJSObjectReference> GetModuleAsync() =>
-        _module ??= await jsRuntime.InvokeAsync<IJSObjectReference>("import", "./js/dataRoot.js");
+    private async ValueTask<IJSObjectReference> GetModuleAsync()
+    {
+        try
+        {
+            return _module ??= await jsRuntime.InvokeAsync<IJSObjectReference>("import", "./js/dataRoot.js");
+        }
+        catch (JSDisconnectedException)
+        {
+            throw;
+        }
+    }
 }
