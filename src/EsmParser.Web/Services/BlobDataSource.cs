@@ -35,9 +35,10 @@ public sealed class BlobDataSource : IDataSource
     public static async ValueTask<IReadOnlyList<BlobDataSource>> CreateAllFromInputAsync(IJSRuntime jsRuntime, ElementReference fileInput)
     {
         ArgumentNullException.ThrowIfNull(jsRuntime);
-        IJSObjectReference registration = await jsRuntime.InvokeAsync<IJSObjectReference>("import", "./js/fileAccess.js");
+        IJSObjectReference? registration = null;
         try
         {
+            registration = await jsRuntime.InvokeAsync<IJSObjectReference>("import", "./js/fileAccess.js");
             BlobFileInfo[] infos = await registration.InvokeAsync<BlobFileInfo[]>("registerAll", fileInput);
             var sources = new List<BlobDataSource>(infos.Length);
             foreach (BlobFileInfo info in infos)
@@ -49,9 +50,16 @@ public sealed class BlobDataSource : IDataSource
 
             return sources;
         }
+        catch (JSDisconnectedException)
+        {
+            return [];
+        }
         finally
         {
-            await registration.DisposeAsync();
+            if (registration is not null)
+            {
+                await registration.DisposeAsync();
+            }
         }
     }
 

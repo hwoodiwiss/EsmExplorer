@@ -19,8 +19,15 @@ public sealed class ThemeService(IJSRuntime jsRuntime) : IAsyncDisposable
 
     public async Task InitializeAsync()
     {
-        _module ??= await jsRuntime.InvokeAsync<IJSObjectReference>("import", "./js/theme.js");
-        Preference = await _module.InvokeAsync<string>("getPreference");
+        try
+        {
+            _module ??= await jsRuntime.InvokeAsync<IJSObjectReference>("import", "./js/theme.js");
+            Preference = await _module.InvokeAsync<string>("getPreference");
+        }
+        catch (JSDisconnectedException)
+        {
+            // The runtime can disappear during prerendering or teardown.
+        }
     }
 
     public async Task SetPreferenceAsync(string preference)
@@ -30,8 +37,15 @@ public sealed class ThemeService(IJSRuntime jsRuntime) : IAsyncDisposable
             await InitializeAsync();
         }
 
-        await _module!.InvokeVoidAsync("setPreference", preference);
-        Preference = preference;
+        try
+        {
+            await _module!.InvokeVoidAsync("setPreference", preference);
+            Preference = preference;
+        }
+        catch (JSDisconnectedException)
+        {
+            // The runtime is gone; the preference cannot be applied.
+        }
     }
 
     public async ValueTask DisposeAsync()
