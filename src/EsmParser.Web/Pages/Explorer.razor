@@ -120,6 +120,10 @@ else
             {
                 // Scroll is best-effort; a JS error should not break the component.
             }
+            catch (OperationCanceledException)
+            {
+                // Component may have been disposed or navigation occurred before the scroll completed.
+            }
         }
     }
 
