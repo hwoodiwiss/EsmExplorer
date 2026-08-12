@@ -10,6 +10,7 @@
   <PropertyGroup>
     <WasmEnableSIMD>true</WasmEnableSIMD>
     <RunAOTCompilation>true</RunAOTCompilation>
+    <UseCoreCLR>true</UseCoreCLR>
   </PropertyGroup>
 
   <ItemGroup>
