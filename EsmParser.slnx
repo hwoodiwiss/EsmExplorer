@@ -8,6 +8,8 @@
     <File Path="Directory.Packages.props" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/BethesdaArchiveParser.Core/BethesdaArchiveParser.Core.csproj" />
+    <Project Path="src/BsaParser.Cli/BsaParser.Cli.csproj" />
     <Project Path="src/EsmParser.Core/EsmParser.Core.csproj" />
     <Project Path="src/EsmParser.Web/EsmParser.Web.csproj" />
   </Folder>
