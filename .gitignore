@@ -493,5 +493,9 @@ $RECYCLE.BIN/
 *.esl
 TestResults/
 
+# Bethesda Archive files
+*.bsa
+*.ba2
+
 # Local package feed (see nuget.config)
 !.packages/*.nupkg
