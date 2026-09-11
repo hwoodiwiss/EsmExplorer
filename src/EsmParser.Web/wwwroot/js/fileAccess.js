@@ -24,6 +24,10 @@ export async function readSlice(id, offset, length) {
   if (!file) {
     throw new Error(`No registered file with id ${id}`);
   }
+  return await readFileSlice(file, offset, length);
+}
+
+export async function readFileSlice(file, offset, length) {
   const buffer = await file.slice(offset, offset + length).arrayBuffer();
   return new Uint8Array(buffer);
 }

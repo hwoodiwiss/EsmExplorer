@@ -1,10 +1,14 @@
-﻿using BethesdaArchiveParser.Core;
+﻿using BethesdaArchiveParser.Core.Reader;
 
 using var fs = new FileStream("D:\\source\\repos\\EsmExplorer\\Resources\\Fallout - Meshes.bsa", FileMode.Open, FileAccess.Read);
-using var reader = new BsaReader(fs);
+var reader = new BsaArchiveReader(fs);
 
-BinaryBsaHeader header = reader.ReadHeader();
+var archive = reader.ReadBsaArchive();
 
-var archive = reader.ReadBsaArchive(header);
+const string FileName = "meshes\\dungeons\\caves\\epic\\caveepicdoorboth02.nif";
 
-Console.WriteLine($"Magic Bytes: {header.MagicBytes}");
+var randomFileHere = archive.GetFileByPath(FileName);
+var fileContent = reader.ReadBsaFile(randomFileHere!);
+File.WriteAllBytes($".\\{FileName.Replace('\\', '_')}", fileContent);
+
+Console.WriteLine($"randomFileHere: {randomFileHere}");

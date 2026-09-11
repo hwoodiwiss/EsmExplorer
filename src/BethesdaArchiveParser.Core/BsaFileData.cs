@@ -7,12 +7,15 @@ public sealed record BsaCompressedFile(BinaryBsaHeader Header, Stream FileStream
 {
     public int CopyTo(Stream destination)
     {
+        byte[] compressedBuffer = new byte[CompressedSize];
         FileStream.Seek(DataOffset, SeekOrigin.Begin);
+        FileStream.ReadExactly(compressedBuffer);
+        using var compressedStream = new MemoryStream(compressedBuffer);
         using Stream decompressionStream = Header.Version <= 104
-            ? new ZLibStream(FileStream, CompressionMode.Decompress, true)
-            : LZ4Stream.Decode(FileStream, leaveOpen: true);
-        decompressionStream.CopyTo(destination, (int)CompressedSize);
-        return (int)CompressedSize;
+            ? new ZLibStream(compressedStream, CompressionMode.Decompress, true)
+            : LZ4Stream.Decode(compressedStream, leaveOpen: true);
+        decompressionStream.CopyTo(destination);
+        return (int)UncompressedSize;
     }
 
     public byte[] GetContent()

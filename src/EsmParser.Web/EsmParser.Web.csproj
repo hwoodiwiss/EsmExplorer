@@ -6,7 +6,7 @@
     <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
     <StaticWebAssetSpaFallbackEnabled>true</StaticWebAssetSpaFallbackEnabled>
   </PropertyGroup>
-  
+
   <PropertyGroup>
     <WasmEnableSIMD>true</WasmEnableSIMD>
     <RunAOTCompilation>true</RunAOTCompilation>
@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\EsmParser.Core\EsmParser.Core.csproj" />
+    <ProjectReference Include="..\BethesdaArchiveParser.Core\BethesdaArchiveParser.Core.csproj" />
   </ItemGroup>
 
 </Project>

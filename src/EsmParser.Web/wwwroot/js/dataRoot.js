@@ -42,8 +42,25 @@ export async function resolveFile(path) {
   if (!fileHandle) {
     return null;
   }
-  const buffer = await (await fileHandle.getFile()).arrayBuffer();
-  return new Uint8Array(buffer);
+  return await fileHandle.getFile();
+}
+
+export async function getAllFileData(file) {
+  var file = await resolveFile(path);
+  return await file.arrayBuffer();
+}
+
+export async function listFiles() {
+  if (!rootHandle) {
+    return null;
+  }
+  const files = [];
+  for await (const entry of rootHandle.values()) {
+    if (entry.kind === 'file') {
+      files += { name: entry.name, size: entry.size };
+    }
+  }
+  return files;
 }
 
 function normalizeDataPath(path) {

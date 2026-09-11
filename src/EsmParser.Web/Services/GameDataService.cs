@@ -1,3 +1,5 @@
+using BethesdaArchiveParser.Core;
+using BethesdaArchiveParser.Core.Reader;
 using Microsoft.JSInterop;
 using NifViewer.Blazor;
 
@@ -11,6 +13,8 @@ namespace EsmParser.Web.Services;
 public sealed class GameDataService(IJSRuntime jsRuntime) : INifDependencyResolver, IAsyncDisposable
 {
     private IJSObjectReference? _module;
+
+    private Dictionary<string, BsaArchive> _rootBsaArchives = [];
 
     /// <summary>The name of the granted folder, or null when none is granted yet.</summary>
     public string? RootName { get; private set; }
@@ -44,6 +48,10 @@ public sealed class GameDataService(IJSRuntime jsRuntime) : INifDependencyResolv
             if (name is not null)
             {
                 RootName = name;
+                var rootFiles = await module.InvokeAsync<RootFileInfo[]>("listFiles");
+                _rootBsaArchives = rootFiles.Where(w => w.Name.EndsWith(".bsa", StringComparison.OrdinalIgnoreCase))
+                    .Select(s => (s, ReadRootedBsaArchive(s)))
+                    .ToDictionary(k => k.s.Name, v => v.Item2)
             }
 
             return name is not null;
@@ -65,7 +73,7 @@ public sealed class GameDataService(IJSRuntime jsRuntime) : INifDependencyResolv
         try
         {
             var module = await GetModuleAsync();
-            return await module.InvokeAsync<byte[]?>("resolveFile", path);
+            return await module.InvokeAsync<byte[]?>("getAllFileData", path);
         }
         catch (JSDisconnectedException)
         {
@@ -101,4 +109,21 @@ public sealed class GameDataService(IJSRuntime jsRuntime) : INifDependencyResolv
             throw;
         }
     }
+
+    private async ValueTask<BsaArchive?> ReadRootedBsaArchive(RootFileInfo rootFile)
+    {
+        try
+        {
+            var jsStreamRef = await jsRuntime.InvokeAsync<IJSStreamReference>("resolveFile", rootFile.Name);
+            using var stream = await jsStreamRef.OpenReadStreamAsync();
+            var bsaReader = new BsaArchiveReader(stream);
+            return bsaReader.ReadBsaArchive();
+        }
+        catch (JSDisconnectedException)
+        {
+            throw;
+        }
+    }
+
+    private sealed record RootFileInfo(string Name, int Size);
 }
