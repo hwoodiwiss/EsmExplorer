@@ -1,12 +1,10 @@
-using System.Text;
-
 namespace BethesdaArchiveParser.Core.Reader;
 
 internal sealed class BsaContentReader(BinaryBsaHeader Header, BsaReader bsaReader)
 {
     private readonly BsaReader _reader = bsaReader;
 
-    public async Task<(List<BsaFolderRecord> Folders, List<BsaFileBlockRecord> FileBlocks, List<string>? FileNames)> ReadBsaArchive()
+    public async ValueTask<(List<BsaFolderRecord> Folders, List<BsaFileBlockRecord> FileBlocks, List<string>? FileNames)> ReadBsaArchive()
     {
         List<BsaFolderRecord> folders = [with((int)Header.FolderCount)];
         Dictionary<long, BsaFolderRecord> foldersByBlockOffset = [with((int)Header.FolderCount)];
@@ -31,7 +29,7 @@ internal sealed class BsaContentReader(BinaryBsaHeader Header, BsaReader bsaRead
             fileNames = [with((int)Header.FileCount)];
             for (int i = 0; i < Header.FileCount; i++)
             {
-                var fileName = _reader.ReadZString();
+                var fileName = await _reader.ReadZString();
                 fileNames.Add(fileName);
             }
         }
@@ -39,17 +37,17 @@ internal sealed class BsaContentReader(BinaryBsaHeader Header, BsaReader bsaRead
         return (folders, fileBlocks, fileNames);
     }
 
-    private async Task<BsaFolderRecord> ReadBsaFolderRecord()
+    private async ValueTask<BsaFolderRecord> ReadBsaFolderRecord()
     {
-        var nameHash = _reader.ReadUInt64();
-        var fileCount = _reader.ReadUInt32();
+        var nameHash = await _reader.ReadUInt64();
+        var fileCount = await _reader.ReadUInt32();
 
         if (Header.Version >= 105)
         {
             SkipPadding(4);
         }
 
-        var fileOffset = _reader.ReadUInt32();
+        var fileOffset = await _reader.ReadUInt32();
 
         if (Header.Version >= 105)
         {
@@ -62,7 +60,7 @@ internal sealed class BsaContentReader(BinaryBsaHeader Header, BsaReader bsaRead
         string? folderName = null;
         if (Header.ArchiveFlags.HasFlag(BsaArchiveFlags.IncludesDirectoryNames))
         {
-            folderName = _reader.ReadBzString();
+            folderName = await _reader.ReadBzString();
         }
 
         List<BsaFileRecord> files = [with((int)fileCount)];
@@ -75,12 +73,12 @@ internal sealed class BsaContentReader(BinaryBsaHeader Header, BsaReader bsaRead
         return new BsaFolderRecord(Header, nameHash, fileCount, fileOffset, folderName, fileOffsets);
     }
 
-    private async Task<BsaFileBlockRecord> ReadBsaFileBlockRecord(BsaFolderRecord folder)
+    private async ValueTask<BsaFileBlockRecord> ReadBsaFileBlockRecord(BsaFolderRecord folder)
     {
         string? folderName = null;
         if (Header.ArchiveFlags.HasFlag(BsaArchiveFlags.IncludesDirectoryNames))
         {
-            folderName = _reader.ReadBzString();
+            folderName = await _reader.ReadBzString();
         }
 
         List<BsaFileRecord> files = [with((int)folder.FileCount)];
@@ -92,27 +90,27 @@ internal sealed class BsaContentReader(BinaryBsaHeader Header, BsaReader bsaRead
         return new BsaFileBlockRecord(folderName, files);
     }
 
-    private async Task<BsaFileRecord> ReadBsaFile()
+    private async ValueTask<BsaFileRecord> ReadBsaFile()
     {
-        ulong nameHash = _reader.ReadUInt64();
-        uint fileSize = _reader.ReadUInt32();
-        uint fileOffset = _reader.ReadUInt32();
+        ulong nameHash = await _reader.ReadUInt64();
+        uint fileSize = await _reader.ReadUInt32();
+        uint fileOffset = await _reader.ReadUInt32();
 
         return new BsaFileRecord(Header, nameHash, fileSize, fileOffset);
     }
 
-    public BsaFileData ReadBsaFileData(BsaFileRecord fileRecord)
+    public async ValueTask<BsaFileData> ReadBsaFileData(BsaFileRecord fileRecord)
     {
         using var fileScope = new ScopedOffset(_reader.BaseStream, fileRecord.Offset);
 
         string? fileName = null;
         if (Header.ArchiveFlags.HasFlag(BsaArchiveFlags.EmbedFileNames))
         {
-            fileName = _reader.ReadBString();
+            fileName = await _reader.ReadBString();
         }
 
         return fileRecord.IsCompressed
-            ? new BsaCompressedFile(Header, _reader.BaseStream, fileName, fileRecord.Size, _reader.ReadUInt32(), (uint)_reader.BaseStream.Position)
+            ? new BsaCompressedFile(Header, _reader.BaseStream, fileName, fileRecord.Size, await _reader.ReadUInt32(), (uint)_reader.BaseStream.Position)
             : new BsaUncompressedFile(Header, _reader.BaseStream, fileName, fileRecord.Size, (uint)_reader.BaseStream.Position);
     }
 

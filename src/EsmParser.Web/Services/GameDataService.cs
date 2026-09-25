@@ -51,7 +51,7 @@ public sealed class GameDataService(IJSRuntime jsRuntime) : INifDependencyResolv
                 var rootFiles = await module.InvokeAsync<RootFileInfo[]>("listFiles");
                 _rootBsaArchives = rootFiles.Where(w => w.Name.EndsWith(".bsa", StringComparison.OrdinalIgnoreCase))
                     .Select(s => (s, ReadRootedBsaArchive(s)))
-                    .ToDictionary(k => k.s.Name, v => v.Item2)
+                    .ToDictionary(k => k.s.Name, v => v.Item2);
             }
 
             return name is not null;
