@@ -4,6 +4,8 @@
 // paths from plugin records match folders as they exist on disk.
 
 let rootHandle = null;
+const openFiles = new Map();
+let nextFileId = 1;
 
 export function isSupported() {
   return typeof window.showDirectoryPicker === "function";
@@ -33,6 +35,9 @@ export async function resolveFile(path) {
   const segments = normalizeDataPath(path)
     .split("/")
     .filter((segment) => segment.length > 0);
+  if (!segments.length || segments.some(s => s === "." || s === ".." || s.includes(":"))) {
+    return null;
+  }
   let directory = rootHandle;
   for (let i = 0; i < segments.length - 1; i++) {
     directory = await getChild(directory, segments[i], false);
@@ -51,26 +56,43 @@ export async function resolveFile(path) {
   return await fileHandle.getFile();
 }
 
-export async function getAllFileData(file) {
-  var file = await resolveFile(path);
-  return await file.arrayBuffer();
+export async function openFile(path) {
+  const file = await resolveFile(path);
+  if (!file) {
+    return null;
+  }
+  const id = nextFileId++;
+  openFiles.set(id, file);
+  return { id, length: file.size };
+}
+
+export async function readFileChunk(id, offset, count) {
+  const file = openFiles.get(id);
+  if (!file) {
+    throw new Error("File handle is closed.");
+  }
+  return new Uint8Array(await file.slice(offset, offset + count).arrayBuffer());
+}
+
+export function closeFile(id) {
+  openFiles.delete(id);
 }
 
 export async function listFiles() {
   if (!rootHandle) {
-    return null;
+    return [];
   }
   const files = [];
   for await (const entry of rootHandle.values()) {
     if (entry.kind === "file") {
-      files.push({ name: entry.name, size: entry.size });
+      files.push(entry.name);
     }
   }
   return files;
 }
 
 function normalizeDataPath(path) {
-  let normalized = path.replaceAll("\\", "/").toLowerCase();
+  let normalized = path.replaceAll("\\", "/").replace(/^\/+/, "").toLowerCase();
   while (normalized.startsWith("data/")) {
     normalized = normalized.slice(5);
   }

@@ -1,131 +1,112 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-
 using Microsoft.JSInterop;
 
 namespace EsmParser.Web.Interop;
 
-/// <Summary>
-/// A stream that pulls each chunk on demand using JavaScript interop. This implementation is used for
-/// WebAssembly and WebView applications.
-/// </Summary>
-internal sealed class SeekablePullFromJSDataStream : Stream
+/// <summary>A seekable, async-only stream over a module-owned browser File snapshot.</summary>
+internal sealed class SeekablePullFromJSDataStream(IJSObjectReference module, int id, long length) : Stream
 {
-    private readonly IJSRuntime _runtime;
-    private readonly IJSStreamReference _jsStreamReference;
-    private readonly long _totalLength;
-    private readonly CancellationToken _streamCancellationToken;
-    private long _offset;
+    private long _position;
+    private bool _disposed;
 
-    public static SeekablePullFromJSDataStream CreateJSDataStream(
-        IJSRuntime runtime,
-        IJSStreamReference jsStreamReference,
-        long totalLength,
-        CancellationToken cancellationToken = default)
+    public static async ValueTask<SeekablePullFromJSDataStream?> OpenAsync(IJSObjectReference module, string path)
     {
-        var jsDataStream = new SeekablePullFromJSDataStream(runtime, jsStreamReference, totalLength, cancellationToken);
-        return jsDataStream;
+        try
+        {
+            var file = await module.InvokeAsync<OpenedFile?>("openFile", path);
+            return file is null ? null : new SeekablePullFromJSDataStream(module, file.Id, file.Length);
+        }
+        catch (JSException ex)
+        {
+            throw new IOException($"Could not open browser file '{path}'.", ex);
+        }
     }
 
-    private SeekablePullFromJSDataStream(
-        IJSRuntime runtime,
-        IJSStreamReference jsStreamReference,
-        long totalLength,
-        CancellationToken cancellationToken)
-    {
-        _runtime = runtime;
-        _jsStreamReference = jsStreamReference;
-        _totalLength = totalLength;
-        _streamCancellationToken = cancellationToken;
-        _offset = 0;
-    }
-
-    public override bool CanRead => true;
-
-    public override bool CanSeek => true;
-
+    public override bool CanRead => !_disposed;
+    public override bool CanSeek => !_disposed;
     public override bool CanWrite => false;
-
-    public override long Length => _totalLength;
-
+    public override long Length => length;
     public override long Position
     {
-        get => _offset;
-        set => _offset = value;
+        get => _position;
+        set => Seek(value, SeekOrigin.Begin);
     }
-
-    public override void Flush()
-    {
-        // No-op
-    }
-
-    public override Task FlushAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-
-    public override int Read(byte[] buffer, int offset, int count)
-        => throw new NotSupportedException("Synchronous reads are not supported.");
 
     public override long Seek(long offset, SeekOrigin origin)
     {
-        long newOffset = origin switch
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        long position = origin switch
         {
             SeekOrigin.Begin => offset,
-            SeekOrigin.Current => _offset + offset,
-            SeekOrigin.End => _totalLength - offset,
-            _ => throw new ArgumentOutOfRangeException(nameof(origin), "Invalid seek origin.")
+            SeekOrigin.Current => checked(_position + offset),
+            SeekOrigin.End => checked(length + offset),
+            _ => throw new ArgumentOutOfRangeException(nameof(origin)),
         };
-
-        if (newOffset < 0 || newOffset > _totalLength)
+        if (position < 0 || position > length)
         {
-            throw new ArgumentOutOfRangeException(nameof(offset), "Seek position is out of bounds.");
+            throw new ArgumentOutOfRangeException(nameof(offset));
         }
-
-        _offset = newOffset;
-        return _offset;
+        return _position = position;
     }
 
-    public override void SetLength(long value)
-        => throw new NotSupportedException();
-
-    public override void Write(byte[] buffer, int offset, int count)
-        => throw new NotSupportedException();
-
-    public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
-        => await ReadAsync(buffer.AsMemory(offset, count), cancellationToken);
+    public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException("Use asynchronous reads for browser files.");
+    public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
+        ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
 
     public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
     {
-        var bytesRead = await RequestDataFromJSAsync(buffer.Length);
-        ThrowIfCancellationRequested(cancellationToken);
-        bytesRead.CopyTo(buffer);
-
-        return bytesRead.Length;
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        cancellationToken.ThrowIfCancellationRequested();
+        int count = (int)Math.Min(Math.Min(buffer.Length, 64 * 1024), length - _position);
+        if (count == 0)
+        {
+            return 0;
+        }
+        byte[] bytes;
+        try
+        {
+            bytes = await module.InvokeAsync<byte[]>("readFileChunk", cancellationToken, id, _position, count);
+        }
+        catch (JSException ex)
+        {
+            throw new IOException("Could not read browser file chunk.", ex);
+        }
+        cancellationToken.ThrowIfCancellationRequested();
+        if (bytes.Length != count)
+        {
+            throw new EndOfStreamException("Browser file returned an incomplete chunk.");
+        }
+        bytes.CopyTo(buffer);
+        _position += count;
+        return count;
     }
 
-    private void ThrowIfCancellationRequested(CancellationToken cancellationToken)
+    public override async ValueTask DisposeAsync()
     {
-        if (cancellationToken.IsCancellationRequested ||
-            _streamCancellationToken.IsCancellationRequested)
+        try
         {
-            throw new TaskCanceledException();
+            if (!_disposed)
+            {
+                _disposed = true;
+                try
+                {
+                    await module.InvokeVoidAsync("closeFile", id);
+                }
+                catch (JSDisconnectedException)
+                {
+                    // Browser/runtime has already released its resources.
+                }
+            }
+        }
+        finally
+        {
+            await base.DisposeAsync();
+            GC.SuppressFinalize(this);
         }
     }
 
-    private async ValueTask<byte[]> RequestDataFromJSAsync(int numBytesToRead)
-    {
-        numBytesToRead = (int)Math.Min(numBytesToRead, _totalLength - _offset);
-#pragma warning disable BL0016 // Unguarded JS interop call
-        var bytesRead = await _runtime.InvokeAsync<byte[]>("Blazor._internal.getJSDataStreamChunk", _jsStreamReference, _offset, numBytesToRead);
-#pragma warning restore BL0016 // Unguarded JS interop call
-        if (bytesRead.Length != numBytesToRead)
-        {
-            throw new EndOfStreamException("Failed to read the requested number of bytes from the stream.");
-        }
+    public override void Flush() { }
+    public override void SetLength(long value) => throw new NotSupportedException();
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 
-        _offset += bytesRead.Length;
-        if (_offset == _totalLength)
-        {
-            Dispose(true);
-        }
-        return bytesRead;
-    }
+    private sealed record OpenedFile(int Id, long Length);
 }

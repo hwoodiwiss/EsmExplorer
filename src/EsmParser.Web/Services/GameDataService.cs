@@ -6,24 +6,20 @@ using NifViewer.Blazor;
 
 namespace EsmParser.Web.Services;
 
-/// <summary>
-/// Grants access to the user's game Data folder via the File System Access API
-/// and resolves asset paths (meshes, materials, textures) from it, serving as
-/// the dependency resolver for the NIF viewer.
-/// </summary>
+/// <summary>Resolves loose and BSA-backed assets from a user-granted game Data directory.</summary>
 public sealed partial class GameDataService(IJSRuntime jsRuntime, ILogger<GameDataService> logger) : INifDependencyResolver, IAsyncDisposable
 {
-    private IJSObjectReference? _module;
+    private Task<IJSObjectReference>? _module;
+    private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly Dictionary<string, ArchivedFile> _files = [with(StringComparer.OrdinalIgnoreCase)];
+    private readonly List<string> _archiveErrors = [];
 
-    private readonly Dictionary<string, BsaArchive> _rootBsaArchives = [];
-
-    /// <summary>The name of the granted folder, or null when none is granted yet.</summary>
     public string? RootName { get; private set; }
-
     public bool HasRoot => RootName is not null;
-
-    /// <summary>False when the browser lacks <c>showDirectoryPicker</c> (e.g. Firefox/Safari).</summary>
     public bool? IsSupported { get; private set; }
+    public int ArchiveCount { get; private set; }
+    public IReadOnlyList<string> ArchiveErrors => _archiveErrors;
+    public IEnumerable<string> ArchivedModelPaths => _files.Keys.Where(static path => path.EndsWith(".nif", StringComparison.OrdinalIgnoreCase));
 
     public async Task<bool> InitializeAsync()
     {
@@ -39,161 +35,151 @@ public sealed partial class GameDataService(IJSRuntime jsRuntime, ILogger<GameDa
         }
     }
 
-    /// <summary>Shows the directory picker; returns true when a folder was granted.</summary>
     public async Task<bool> PickAsync()
     {
+        await _gate.WaitAsync();
         try
         {
             var module = await GetModuleAsync();
             string? name = await module.InvokeAsync<string?>("pickDataRoot");
-            if (name is not null)
+            if (name is null)
             {
-                RootName = name;
-                var rootFiles = await module.InvokeAsync<RootFileInfo[]>("listFiles");
-                var bsaFiles = rootFiles.Where(w => w.Name.EndsWith(".bsa", StringComparison.OrdinalIgnoreCase)).ToList();
-                Log.FoundBsaArchives(logger, bsaFiles.Count);
-                foreach (var file in bsaFiles)
+                return false;
+            }
+            RootName = name;
+            _files.Clear();
+            _archiveErrors.Clear();
+            ArchiveCount = 0;
+            var names = await module.InvokeAsync<string[]>("listFiles");
+            foreach (string archiveName in names.Where(static n => n.EndsWith(".bsa", StringComparison.OrdinalIgnoreCase)).Order(StringComparer.OrdinalIgnoreCase))
+            {
+                try
                 {
-                    var archive = await ReadRootedBsaArchive(file);
-                    if (archive is not null)
+                    await using var stream = await SeekablePullFromJSDataStream.OpenAsync(module, archiveName)
+                        ?? throw new FileNotFoundException("Archive is no longer available.", archiveName);
+                    var archive = await new BsaArchiveReader(stream).ReadBsaArchiveAsync();
+                    foreach (var entry in archive.Entries)
                     {
-                        Log.ReadBsaArchive(logger, file.Name);
-                        _rootBsaArchives[file.Name] = archive;
+                        string? path = NormalizePath(entry.Path);
+                        if (path is not null)
+                        {
+                            _files[path] = new ArchivedFile(archiveName, entry.File);
+                        }
                     }
-                    else
-                    {
-                        Log.FailedToReadBsaArchive(logger, file.Name);
-                    }
+                    ArchiveCount++;
+                }
+                catch (Exception ex) when (ex is IOException or InvalidDataException or NotSupportedException or JSException)
+                {
+                    _archiveErrors.Add($"{archiveName}: {ex.Message}");
+                    Log.ArchiveFailure(logger, ex, archiveName);
                 }
             }
-
-            return name is not null;
+            return true;
         }
         catch (JSDisconnectedException)
         {
             return false;
         }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
-    /// <summary>Resolves a data-relative path (lowercase, forward slashes) to file bytes, or null.</summary>
     public async Task<byte[]?> ResolveAsync(string path)
     {
-        if (!HasRoot || string.IsNullOrEmpty(path))
+        string? normalized = NormalizePath(path);
+        if (normalized is null)
         {
             return null;
         }
-
+        await _gate.WaitAsync();
         try
         {
-            if (SearchArchivesForPath(path) is (string Name, BsaFileRecord file))
+            if (!HasRoot)
             {
-                return await ReadRootedBsaArchiveFile(Name, file);
+                return null;
             }
-
             var module = await GetModuleAsync();
-            return await module.InvokeAsync<byte[]?>("getAllFileData", path);
+            // Loose overrides take precedence. Open snapshots are disposed even if parsing fails.
+            await using var loose = await SeekablePullFromJSDataStream.OpenAsync(module, normalized);
+            if (loose is not null)
+            {
+                if (loose.Length > Array.MaxLength)
+                {
+                    throw new InvalidDataException("Asset is too large for the viewer.");
+                }
+                byte[] bytes = new byte[(int)loose.Length];
+                await loose.ReadExactlyAsync(bytes);
+                return bytes;
+            }
+            if (!_files.TryGetValue(normalized, out var entry))
+            {
+                return null;
+            }
+            await using var archiveStream = await SeekablePullFromJSDataStream.OpenAsync(module, entry.ArchiveName);
+            return archiveStream is null ? null : await new BsaArchiveReader(archiveStream).ReadBsaFileAsync(entry.File);
         }
         catch (JSDisconnectedException)
         {
             return null;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    internal static string? NormalizePath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+        string normalized = path.Replace('\\', '/').TrimStart('/').ToLowerInvariant();
+        while (normalized.StartsWith("data/", StringComparison.Ordinal))
+        {
+            normalized = normalized[5..];
+        }
+        if (normalized.Split('/').Any(static part => part.Length == 0 || part is "." or ".." || part.Contains(':')))
+        {
+            return null;
+        }
+        return normalized;
+    }
+
+    private Task<IJSObjectReference> GetModuleAsync() => _module ??= ImportModuleAsync();
+
+    private async Task<IJSObjectReference> ImportModuleAsync()
+    {
+        try
+        {
+            return await jsRuntime.InvokeAsync<IJSObjectReference>("import", "./js/dataRoot.js");
+        }
+        catch (JSDisconnectedException)
+        {
+            throw;
         }
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_module is null)
+        if (_module is not null)
         {
-            return;
-        }
-
-        try
-        {
-            await _module.DisposeAsync();
-        }
-        catch (JSDisconnectedException)
-        {
-            // The runtime is gone; nothing to release.
-        }
-    }
-
-    private async ValueTask<IJSObjectReference> GetModuleAsync()
-    {
-        try
-        {
-            return _module ??= await jsRuntime.InvokeAsync<IJSObjectReference>("import", "./js/dataRoot.js");
-        }
-        catch (JSDisconnectedException)
-        {
-            throw;
-        }
-    }
-
-    private async ValueTask<BsaArchive?> ReadRootedBsaArchive(RootFileInfo rootFile)
-    {
-        try
-        {
-            var module = await GetModuleAsync();
-            var jsStreamRef = await module.InvokeAsync<IJSStreamReference>("resolveFile", rootFile.Name);
-            using var stream = SeekablePullFromJSDataStream.CreateJSDataStream(jsRuntime, jsStreamRef, jsStreamRef.Length);
-            var bsaReader = new BsaArchiveReader(stream);
-            return await bsaReader.ReadBsaArchiveAsync();
-        }
-        catch (JSDisconnectedException ex)
-        {
-            Log.FailedToReadBsaArchiveFile(logger, ex, rootFile.Name, rootFile.Name);
-            throw;
-        }
-        catch (Exception ex)
-        {
-            Log.FailedToReadBsaArchiveFile(logger, ex, rootFile.Name, rootFile.Name);
-            return null;
-        }
-    }
-
-    private (string Name, BsaFileRecord file)? SearchArchivesForPath(string path)
-    {
-        foreach (var archive in _rootBsaArchives.Values)
-        {
-            if (archive.GetFileByPath(path) is { } file)
+            try
             {
-                return (path, file);
+                await (await _module).DisposeAsync();
             }
+            catch (JSDisconnectedException) { }
         }
-
-        return null;
+        _gate.Dispose();
     }
 
-
-    private async ValueTask<byte[]> ReadRootedBsaArchiveFile(string rootFileName, BsaFileRecord file)
-    {
-        try
-        {
-            var module = await GetModuleAsync();
-            var jsStreamRef = await module.InvokeAsync<IJSStreamReference>("resolveFile", rootFileName);
-            using var stream = SeekablePullFromJSDataStream.CreateJSDataStream(jsRuntime, jsStreamRef, jsStreamRef.Length);
-            var bsaReader = new BsaArchiveReader(stream);
-            return await bsaReader.ReadBsaFileAsync(file);
-        }
-        catch (JSDisconnectedException)
-        {
-            throw;
-        }
-    }
-
-    private sealed record RootFileInfo(string Name, int Size);
+    private sealed record ArchivedFile(string ArchiveName, BsaFileRecord File);
 
     private static partial class Log
     {
-        [LoggerMessage(1, LogLevel.Information, "Found {Count} BSA archives in the granted root folder.")]
-        public static partial void FoundBsaArchives(ILogger logger, int Count);
-
-        [LoggerMessage(2, LogLevel.Information, "Read BSA archive: {ArchiveName}.")]
-        public static partial void ReadBsaArchive(ILogger logger, string ArchiveName);
-
-        [LoggerMessage(3, LogLevel.Warning, "Failed to read BSA archive: {ArchiveName}.")]
-        public static partial void FailedToReadBsaArchive(ILogger logger, string ArchiveName);
-
-        [LoggerMessage(4, LogLevel.Error, "Failed to read BSA archive file: {ArchiveName} - {FilePath}.")]
-        public static partial void FailedToReadBsaArchiveFile(ILogger logger, Exception ex, string ArchiveName, string FilePath);
+        [LoggerMessage(1, LogLevel.Warning, "Could not index BSA archive {ArchiveName}.")]
+        public static partial void ArchiveFailure(ILogger logger, Exception exception, string archiveName);
     }
 }

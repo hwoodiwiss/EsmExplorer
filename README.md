@@ -18,6 +18,7 @@ use stays flat regardless of file size.
 | `src/BsaParser.Cli` | NativeAOT-compatible System.CommandLine CLI with Spectre.Console selection and progress. |
 | `tests/BethesdaArchiveParser.Core.Tests` | Generated BSA fixtures, sync/async I/O checks, and opt-in external fixture verification. |
 | `tests/BsaParser.Cli.Tests` | Command parsing, interactive selection, extraction, overwrite, and error handling tests. |
+| `tests/EsmParser.Web.Tests` | Browser file-stream and BSA resolver tests with fake JS interop, plus JavaScript directory-handle tests. |
 | `tests/EsmParser.Core.Tests` | TUnit test suite: unit tests over synthetic plugins plus integration tests against the real `Starfield.esm`. |
 
 ## The file format
@@ -233,6 +234,21 @@ Records whose `MODL` field (or any text field ending in `.nif`) names a model ge
 **View** link that opens the built-in NIF model viewer (`/model`, also in the nav).
 The viewer needs read access to your game `Data` folder (File System Access API —
 Chromium-based browsers): click **Choose data root…** and pick it once per session.
+For BSA-based games such as Fallout: New Vegas, select the installed `Data` directory
+directly; no extraction is required. The viewer indexes top-level BSA metadata, then
+reads requested NIFs and dependencies using seekable, asynchronous file slices capped
+at 64 KiB per interop call. Whole archives are never copied into browser memory.
+Individual assets are materialized as byte arrays for the viewer's resolver API.
+Loose files take precedence; duplicate archived paths use the last archive in
+case-insensitive filename order (this does not reproduce plugin load order).
+Changing the root rebuilds the index; cancelling the picker preserves the current root.
+Unusable archives are listed in the UI while other archives remain available.
+
+Use **Browse archived models** to filter NIF paths, or enter a data-relative path and
+click **Load path**. The browser list shows up to 100 matches at a time. Record **View**
+links continue to work with the same resolver. Starfield BA2 files still require the
+extraction workflow below.
+
 Model paths are resolved case-insensitively, trying `meshes/<path>` then `<path>`,
 and external dependencies (`geometries/*.mesh`, `materials/*.mat`, `textures/*.dds`)
 are streamed from the same folder on demand. Arbitrary `.nif` files can also be
@@ -273,6 +289,22 @@ are unavailable, but the Creation Kit material files provide the most accurate
 texture assignments.
 
 ## Testing
+
+Web resolver tests run as part of the solution suite, linking the production service
+and stream sources into a host-runtime test project. Run the JavaScript directory
+handle tests with Node 20 or newer:
+
+```shell
+node --test tests/EsmParser.Web.Tests/dataRoot.test.mjs
+```
+
+The local `NifViewer.Blazor` package is `0.1.0-preview.5`, built from the sibling
+`nif-viewer` repository with NiTriStrips/NiTriStripsData support, invalid-reference
+checks, and degenerate-strip handling. Rebuild with
+`dotnet pack nif-viewer-blazor/NifViewer.Blazor -c Release -o artifacts -m:1`
+from that repository, then copy the package into `.packages` and update the central
+version. Serial packing avoids concurrent multi-target builds writing the same WASM
+output directory. Use a new package version to avoid stale NuGet-cache assets.
 
 ```shell
 dotnet test
