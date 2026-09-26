@@ -4,6 +4,7 @@ public static class BsaHash
 {
     public static ulong Compute(string name)
     {
+        ArgumentNullException.ThrowIfNull(name);
         name = name.Replace('/', '\\');
         return GetHash(Path.ChangeExtension(name, null), Path.GetExtension(name));
     }
@@ -12,14 +13,9 @@ public static class BsaHash
     {
         name = name.ToLowerInvariant();
         ext = ext.ToLowerInvariant();
-        byte[] hashBytes =
-        [
-            (byte)(name.Length == 0 ? '\0' : name[^1]),
-            (byte)(name.Length < 3 ? '\0' : name[^2]),
-            (byte)name.Length,
-            (byte)name[0]
-        ];
-        var hash1 = BitConverter.ToUInt32(hashBytes, 0);
+        uint hash1 = name.Length == 0 ? 0 : (uint)(byte)name[^1]
+            | ((uint)(name.Length < 3 ? 0 : (byte)name[^2]) << 8)
+            | ((uint)(byte)name.Length << 16) | ((uint)(byte)name[0] << 24);
         uint contentTypeBit = ext switch
         {
             ".kf" => 0x80,

@@ -1,119 +1,127 @@
 using System.Buffers.Binary;
-using System.Runtime.InteropServices;
 using System.Text;
 
 namespace BethesdaArchiveParser.Core.Reader;
 
-internal sealed class BsaReader(BinaryBsaHeader Header, Stream Stream, bool asyncReader)
+// Read-ahead avoids an allocation and a stream/JS interop call per scalar or character.
+internal sealed class BsaReader(Stream stream, bool isAsync, CancellationToken cancellationToken)
 {
-    private readonly bool _bigEndian = Header.ArchiveFlags.HasFlag(BsaArchiveFlags.Xbox360Archive);
+    private static readonly Encoding NameEncoding = CreateEncoding();
+    private readonly byte[] _buffer = new byte[16 * 1024];
+    private int _position;
+    private int _length;
 
-    public Stream BaseStream => Stream;
+    public long Position => stream.Position - _length + _position;
 
-    public bool IsAsync { get; } = asyncReader;
-
-    public static async ValueTask<BinaryBsaHeader> ReadHeader(Stream stream, bool readAsync)
+    public void Seek(long offset)
     {
-        int bufferSize = Marshal.SizeOf<BinaryBsaHeader>();
-        byte[] buffer = new byte[bufferSize];
+        if (offset < 0 || offset > stream.Length)
+            throw new InvalidDataException("BSA offset is outside the stream.");
+        if (offset == Position) return;
+        stream.Position = offset;
+        _position = _length = 0;
+    }
 
-        if (readAsync)
+    private static Encoding CreateEncoding()
+    {
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        return Encoding.GetEncoding(1252);
+    }
+
+    public async ValueTask<byte> ReadByte()
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_position == _length)
         {
-            await stream.ReadExactlyAsync(new Memory<byte>(buffer));
+            _length = isAsync
+                ? await stream.ReadAsync(_buffer, cancellationToken).ConfigureAwait(false)
+                : stream.Read(_buffer);
+            _position = 0;
+            if (_length == 0) throw new EndOfStreamException();
         }
-        else
-        {
-            stream.ReadExactly(buffer);
-        }
-
-        nint ptr = Marshal.AllocHGlobal(bufferSize);
-        Marshal.Copy(buffer, 0, ptr, buffer.Length);
-        BinaryBsaHeader header = Marshal.PtrToStructure<BinaryBsaHeader>(ptr)!;
-        Marshal.FreeHGlobal(ptr);
-
-        if (!header.ArchiveFlags.HasFlag(BsaArchiveFlags.IncludesDirectoryNames))
-        {
-            throw new InvalidDataException("Expected IncludesDirectoryNames flag to be set in the BSA header.");
-        }
-
-        if (!header.ArchiveFlags.HasFlag(BsaArchiveFlags.IncludesFileNames))
-        {
-            throw new InvalidDataException("Expected IncludesFileNames flag to be set in the BSA header.");
-        }
-
-        return header;
+        return _buffer[_position++];
     }
 
     public async ValueTask<uint> ReadUInt32()
     {
-        var bytes = await ReadBytesAsync(4);
-        return _bigEndian ? BinaryPrimitives.ReadUInt32BigEndian(bytes) : BinaryPrimitives.ReadUInt32LittleEndian(bytes);
+        uint value = 0;
+        for (int i = 0; i < 4; i++) value |= (uint)await ReadByte().ConfigureAwait(false) << (i * 8);
+        return value;
     }
 
     public async ValueTask<ulong> ReadUInt64()
     {
-        var bytes = await ReadBytesAsync(8);
-        return _bigEndian ? BinaryPrimitives.ReadUInt64BigEndian(bytes) : BinaryPrimitives.ReadUInt64LittleEndian(bytes);
+        var low = await ReadUInt32().ConfigureAwait(false);
+        return low | ((ulong)await ReadUInt32().ConfigureAwait(false) << 32);
     }
 
     public async ValueTask<string> ReadBzString()
     {
-        var singleByteArray = await ReadBytesAsync(1);
-        if (singleByteArray.Length != 1)
-        {
-            throw new EndOfStreamException("Unexpected end of stream while reading BzString.");
-        }
-        var bytes = await ReadBytesAsync(singleByteArray[0]);
-        return Encoding.GetEncoding(1252).GetString(bytes[..^1]);
+        var length = await ReadByte().ConfigureAwait(false);
+        if (length == 0) throw new InvalidDataException("A folder name must include its terminator.");
+        var bytes = new byte[length];
+        for (int i = 0; i < length; i++) bytes[i] = await ReadByte().ConfigureAwait(false);
+        if (bytes[^1] != 0) throw new InvalidDataException("Folder name is not null terminated.");
+        return NameEncoding.GetString(bytes.AsSpan(0, length - 1));
     }
 
-    public async ValueTask<string> ReadBString()
+    public async ValueTask<List<string>> ReadFileNames(uint byteCount, uint count)
     {
-        var singleByteArray = await ReadBytesAsync(1);
-        if (singleByteArray.Length != 1)
+        if (byteCount > int.MaxValue || byteCount > stream.Length - Position || count > byteCount)
+            throw new InvalidDataException("Invalid filename table length.");
+        var bytes = new byte[(int)byteCount];
+        for (int i = 0; i < bytes.Length;)
         {
-            throw new EndOfStreamException("Unexpected end of stream while reading BzString.");
+            bytes[i++] = await ReadByte().ConfigureAwait(false);
+            int available = Math.Min(_length - _position, bytes.Length - i);
+            _buffer.AsSpan(_position, available).CopyTo(bytes.AsSpan(i));
+            _position += available;
+            i += available;
         }
-        var bytes = await ReadBytesAsync(singleByteArray[0]);
-        return Encoding.GetEncoding(1252).GetString(bytes);
+        var names = new List<string>((int)count);
+        int start = 0;
+        // Some shipped archives (e.g. New Vegas Voices1) overstate TotalFileNameLength.
+        // FileCount is authoritative; the length still bounds all reads and folder offset adjustment.
+        for (int i = 0; i < bytes.Length && names.Count < count; i++)
+        {
+            if (bytes[i] != 0) continue;
+            if (i == start) throw new InvalidDataException("Empty BSA filename.");
+            names.Add(NameEncoding.GetString(bytes.AsSpan(start, i - start)));
+            start = i + 1;
+        }
+        if (names.Count != count)
+            throw new InvalidDataException("Filename table does not match the header.");
+        return names;
     }
 
-    public async ValueTask<string> ReadZString()
+    public static async ValueTask<BinaryBsaHeader> ReadHeader(Stream stream, bool isAsync, CancellationToken cancellationToken)
     {
-        List<byte> bytes = [];
-        while (true)
+        var bytes = new byte[36];
+        if (isAsync) await stream.ReadExactlyAsync(bytes, cancellationToken).ConfigureAwait(false);
+        else stream.ReadExactly(bytes);
+        if (!bytes.AsSpan(0, 4).SequenceEqual("BSA\0"u8)) throw new InvalidDataException("Invalid BSA signature.");
+        var header = new BinaryBsaHeader
         {
-            var b = await ReadByteAsync();
-            if (b == '\0')
-            {
-                break;
-            }
-            bytes.Add(b);
-        }
-
-        return Encoding.GetEncoding(1252).GetString([.. bytes]);
-    }
-
-    private async ValueTask<byte> ReadByteAsync()
-    {
-        var singleByteArray = await ReadBytesAsync(1);
-        if (singleByteArray.Length != 1)
-        {
-            throw new EndOfStreamException("Unexpected end of stream while reading a single byte.");
-        }
-        return singleByteArray[0];
-    }
-
-    private async ValueTask<byte[]> ReadBytesAsync(int count)
-    {
-        byte[] buffer = new byte[count];
-        int bytesRead = IsAsync
-            ? await Stream.ReadAtLeastAsync(new Memory<byte>(buffer), count, false)
-            : Stream.ReadAtLeast(buffer, count, false);
-        if (bytesRead != count)
-        {
-            throw new EndOfStreamException("Unexpected end of stream while reading bytes.");
-        }
-        return buffer;
+            MagicBytes = "BSA\0",
+            Version = BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(4)),
+            RecordOffset = BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(8)),
+            ArchiveFlags = (BsaArchiveFlags)BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(12)),
+            FolderCount = BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(16)),
+            FileCount = BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(20)),
+            TotalFolderNameLength = BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(24)),
+            TotalFileNameLength = BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(28)),
+            FileFlags = (BsaFileFlags)BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(32)),
+            Padding = BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(34)),
+        };
+        if (header.Version is not (103 or 104 or 105)) throw new InvalidDataException($"Unsupported BSA version {header.Version}.");
+        if ((header.ArchiveFlags & (BsaArchiveFlags.Xbox360Archive | BsaArchiveFlags.XMemCodec)) != 0)
+            throw new NotSupportedException("Xbox/XMem BSA archives are not supported.");
+        const BsaArchiveFlags names = BsaArchiveFlags.IncludesDirectoryNames | BsaArchiveFlags.IncludesFileNames;
+        if ((header.ArchiveFlags & names) != names) throw new InvalidDataException("BSA directory and file names are required.");
+        long recordBytes = (long)header.FolderCount * (header.Version == 105 ? 24 : 16);
+        if (header.RecordOffset < 36 || header.RecordOffset > stream.Length || recordBytes > stream.Length - header.RecordOffset
+            || header.FileCount > int.MaxValue || (long)header.FileCount * 16 > stream.Length)
+            throw new InvalidDataException("Invalid BSA record counts or offsets.");
+        return header;
     }
 }

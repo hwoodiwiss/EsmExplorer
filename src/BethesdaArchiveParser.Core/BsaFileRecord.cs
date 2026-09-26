@@ -2,6 +2,9 @@ namespace BethesdaArchiveParser.Core;
 
 public sealed record BsaFileRecord(BinaryBsaHeader Header, ulong NameHash, uint Size, uint Offset)
 {
+    /// <summary>Stored size, excluding the compression-toggle flag.</summary>
+    public uint StoredSize => Size & 0x3fffffff;
+
     public bool IsCompressed
     {
         get

@@ -1,58 +1,85 @@
-
-using System.Text;
+using System.Buffers.Binary;
 using BethesdaArchiveParser.Core.Extensions;
 
 namespace BethesdaArchiveParser.Core.Reader;
 
-public sealed class BsaArchiveReader(Stream stream)
+/// <summary>Reads a caller-owned, readable, seekable stream. Operations on one stream must not overlap.</summary>
+public sealed class BsaArchiveReader
 {
-    public BsaArchive ReadBsaArchive()
+    private readonly Stream _stream;
+
+    public BsaArchiveReader(Stream stream)
     {
-        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-        BinaryBsaHeader bsaHeader = BsaReader.ReadHeader(stream, false).AsSync();
-        var bsaReader = new BsaReader(bsaHeader, stream, false);
-        var bsaContentReader = new BsaContentReader(bsaHeader, bsaReader);
-        var (folders, fileBlocks, fileNames) = bsaContentReader.ReadBsaArchive().AsSync();
-        return new BsaArchive(bsaHeader, folders, fileBlocks, fileNames!);
+        ArgumentNullException.ThrowIfNull(stream);
+        if (!stream.CanRead || !stream.CanSeek) throw new ArgumentException("BSA streams must be readable and seekable.", nameof(stream));
+        _stream = stream;
     }
 
-    public async Task<BsaArchive> ReadBsaArchiveAsync()
+    public BsaArchive ReadBsaArchive() => ReadArchive(false, default).AsSync();
+    public Task<BsaArchive> ReadBsaArchiveAsync(CancellationToken cancellationToken = default) => ReadArchive(true, cancellationToken).AsTask();
+
+    private async ValueTask<BsaArchive> ReadArchive(bool isAsync, CancellationToken cancellationToken)
     {
-        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-        BinaryBsaHeader bsaHeader = await BsaReader.ReadHeader(stream, true);
-        var bsaReader = new BsaReader(bsaHeader, stream, true);
-        var bsaContentReader = new BsaContentReader(bsaHeader, bsaReader);
-        var (folders, fileBlocks, fileNames) = await bsaContentReader.ReadBsaArchive();
-        return new BsaArchive(bsaHeader, folders, fileBlocks, fileNames!);
+        cancellationToken.ThrowIfCancellationRequested();
+        _stream.Position = 0;
+        var header = await BsaReader.ReadHeader(_stream, isAsync, cancellationToken).ConfigureAwait(false);
+        return await new BsaContentReader(header, new BsaReader(_stream, isAsync, cancellationToken)).ReadBsaArchive().ConfigureAwait(false);
     }
 
-    public byte[] ReadBsaFile(BsaFileRecord file)
+    public byte[] ReadBsaFile(BsaFileRecord file) => ReadFile(file, false, default).AsSync();
+    public Task<byte[]> ReadBsaFileAsync(BsaFileRecord file, CancellationToken cancellationToken = default) => ReadFile(file, true, cancellationToken).AsTask();
+
+    /// <summary>Streams an entry to the destination with bounded memory, leaving both streams open.</summary>
+    public long CopyBsaFileTo(BsaFileRecord file, Stream destination) => CopyFile(file, destination, false, default).AsSync();
+    public ValueTask<long> CopyBsaFileToAsync(BsaFileRecord file, Stream destination, CancellationToken cancellationToken = default) =>
+        CopyFile(file, destination, true, cancellationToken);
+
+    private async ValueTask<byte[]> ReadFile(BsaFileRecord file, bool isAsync, CancellationToken cancellationToken)
+    {
+        var payload = await GetPayload(file, isAsync, cancellationToken).ConfigureAwait(false);
+        if (payload.ExpandedSize > Array.MaxLength) throw new InvalidDataException("Entry is too large for a byte array; use streaming extraction.");
+        byte[] bytes = new byte[(int)payload.ExpandedSize];
+        using var output = new MemoryStream(bytes, writable: true);
+        await BsaPayload.Copy(_stream, output, file.Header.Version, payload.Offset, payload.StoredSize,
+            payload.ExpandedSize, file.IsCompressed, isAsync, cancellationToken).ConfigureAwait(false);
+        return bytes;
+    }
+
+    private async ValueTask<long> CopyFile(BsaFileRecord file, Stream destination, bool isAsync, CancellationToken cancellationToken)
+    {
+        var payload = await GetPayload(file, isAsync, cancellationToken).ConfigureAwait(false);
+        return await BsaPayload.Copy(_stream, destination, file.Header.Version, payload.Offset, payload.StoredSize,
+            payload.ExpandedSize, file.IsCompressed, isAsync, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async ValueTask<(long Offset, uint StoredSize, uint ExpandedSize)> GetPayload(BsaFileRecord file, bool isAsync, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(file);
-        var bsaReader = new BsaReader(file.Header, stream, false);
-        var bsaContentReader = new BsaContentReader(file.Header, bsaReader);
-        var fileData = bsaContentReader.ReadBsaFileData(file).AsSync();
-        var data = fileData switch
+        cancellationToken.ThrowIfCancellationRequested();
+        uint size = file.StoredSize;
+        if (file.Offset > _stream.Length || size > _stream.Length - file.Offset)
+            throw new InvalidDataException("File record is outside the archive.");
+        using var scope = new ScopedOffset(_stream, file.Offset);
+        byte[] scratch = new byte[4];
+        if (file.Header.Version >= 104 && file.Header.ArchiveFlags.HasFlag(BsaArchiveFlags.EmbedFileNames))
         {
-            BsaCompressedFile compressedFile => compressedFile.GetContent(),
-            BsaUncompressedFile uncompressedFile => uncompressedFile.GetContent(),
-            _ => throw new InvalidOperationException("Unknown file data type.")
-        };
-        return data;
-    }
-
-    public async Task<byte[]> ReadBsaFileAsync(BsaFileRecord file)
-    {
-        ArgumentNullException.ThrowIfNull(file);
-        var bsaReader = new BsaReader(file.Header, stream, true);
-        var bsaContentReader = new BsaContentReader(file.Header, bsaReader);
-        var fileData = await bsaContentReader.ReadBsaFileData(file);
-        var data = fileData switch
+            if (size == 0) throw new InvalidDataException("Missing embedded filename.");
+            if (isAsync) await _stream.ReadExactlyAsync(scratch.AsMemory(0, 1), cancellationToken).ConfigureAwait(false);
+            else _stream.ReadExactly(scratch.AsSpan(0, 1));
+            uint prefix = (uint)scratch[0] + 1;
+            if (prefix > size) throw new InvalidDataException("Embedded filename exceeds the file size.");
+            size -= prefix;
+            _stream.Seek(scratch[0], SeekOrigin.Current);
+        }
+        uint expanded = size;
+        if (file.IsCompressed)
         {
-            BsaCompressedFile compressedFile => compressedFile.GetContent(),
-            BsaUncompressedFile uncompressedFile => uncompressedFile.GetContent(),
-            _ => throw new InvalidOperationException("Unknown file data type.")
-        };
-        return data;
+            if (size < 4) throw new InvalidDataException("Missing uncompressed size.");
+            if (isAsync) await _stream.ReadExactlyAsync(scratch, cancellationToken).ConfigureAwait(false);
+            else _stream.ReadExactly(scratch);
+            expanded = BinaryPrimitives.ReadUInt32LittleEndian(scratch);
+            size -= 4;
+        }
+        return (_stream.Position, size, expanded);
     }
 }

@@ -14,6 +14,10 @@ use stays flat regardless of file size.
 |---|---|
 | `src/EsmParser.Core` | All parsing, navigation, and interpretation logic. No UI or platform dependencies. |
 | `src/EsmParser.Web` | Blazor WebAssembly explorer. Display logic only — file access via JS blob slicing, tree navigation, record/field details, hex views, dark mode. |
+| `src/BethesdaArchiveParser.Core` | BSA 103/104/105 metadata and bounded-memory payload extraction, with synchronous and asynchronous stream APIs. |
+| `src/BsaParser.Cli` | NativeAOT-compatible System.CommandLine CLI with Spectre.Console selection and progress. |
+| `tests/BethesdaArchiveParser.Core.Tests` | Generated BSA fixtures, sync/async I/O checks, and opt-in external fixture verification. |
+| `tests/BsaParser.Cli.Tests` | Command parsing, interactive selection, extraction, overwrite, and error handling tests. |
 | `tests/EsmParser.Core.Tests` | TUnit test suite: unit tests over synthetic plugins plus integration tests against the real `Starfield.esm`. |
 
 ## The file format
@@ -121,6 +125,96 @@ bytes. Form references are links — following one jumps to the defining record,
 another loaded file, expanding the tree to it. A "Go to form id" box does the same for
 arbitrary ids. The first jump into a plugin builds its form-id index (a one-off full
 read, with progress); later jumps are instant.
+
+## BSA unpacker
+
+```powershell
+# One archive: writes directly into output, preserving archive paths
+dotnet run --project src/BsaParser.Cli -- unpack "D:\Game\Data\Meshes.bsa" -o "D:\Extracted"
+
+# Interactive multi-selection (Space to select, Enter to unpack)
+dotnet run --project src/BsaParser.Cli -- unpack-directory "D:\Game\Data" -o "D:\Extracted"
+
+# Scripts/CI: select every archive, or repeat --archive for specific filenames
+dotnet run --project src/BsaParser.Cli -- unpack-directory "D:\Game\Data" -o "D:\Extracted" --all --non-interactive
+dotnet run --project src/BsaParser.Cli -- unpack-directory "D:\Game\Data" -o "D:\Extracted" --archive "Meshes.bsa" --archive "Textures.bsa" --non-interactive
+
+# Native executable (requires the platform's NativeAOT toolchain)
+dotnet publish src/BsaParser.Cli -c Release -r win-x64
+```
+
+Batch mode searches the input directory's top level, case-insensitively matching `.bsa`.
+All archives write directly into the shared output directory, preserving their internal
+paths (for example, `Extracted/meshes/…` and `Extracted/textures/…`).
+`--all` and interactive selection process archives in case-insensitive filename order;
+repeated `--archive` options use the supplied order. With `--overwrite`, later archives
+replace earlier files at the same path; this order does not infer the game's load order.
+`--all` and `--archive` are mutually exclusive. Prompts and live progress
+are disabled by `--non-interactive`, redirected stdin/stdout, `TERM=dumb`, or a nonempty
+`CI` value other than `false`/`0`. Without an interactive terminal, batch mode requires
+explicit selection. The two commands also support `--help`.
+
+Existing files, including paths already extracted from another BSA, cause an error
+unless `--overwrite` is supplied. Each entry is first
+streamed to a temporary file in its destination directory, then moved into place;
+failed/cancelled entries leave existing files intact. Completed entries remain if a
+later entry fails. Batch mode continues after archive failures and reports a summary.
+Archive traversal paths, device names, and existing symbolic links/reparse points in
+output paths are rejected. Use an output directory that is not concurrently modified.
+Exit codes: **0** success, **1** extraction/argument error, **2** missing non-interactive
+selection, **130** cancellation. Ctrl+C cancels the active command.
+
+### Library API and portability
+
+```csharp
+using var stream = File.OpenRead("example.bsa");
+var reader = new BsaArchiveReader(stream);
+var archive = await reader.ReadBsaArchiveAsync(cancellationToken);
+foreach (var entry in archive.Entries)
+{
+    // entry.Path is an archive-relative path; entry.File is its metadata record.
+    await reader.CopyBsaFileToAsync(entry.File, destination, cancellationToken);
+}
+```
+
+`ReadBsaArchive`, `ReadBsaFile`, and `CopyBsaFileTo` are the synchronous equivalents.
+Async methods perform asynchronous source/destination I/O, without blocking on tasks
+or using `Task.Run`, so seekable browser-backed streams can be used from WASM.
+Streams are caller-owned and remain open; operations on the same source stream must
+be serialized. Payload reads restore the source position. `ReadBsaFile[Async]` returns
+a byte array; prefer `CopyBsaFileTo[Async]` for large entries. Payload copying uses a
+pooled buffer, bounds compressed input to the entry, and verifies the expanded length.
+Archive metadata is held in memory with buffered reads and a case-insensitive path index.
+Treat the legacy mutable metadata lists as read-only after construction.
+
+Supported: named PC BSA versions 103/104 (zlib) and 105 (LZ4 frames), including
+per-file compression overrides and embedded names. Xbox/XMem archives and archives
+without directory/file names are explicitly rejected. Version 105 folder offsets now
+use `ulong` (`BsaFolderRecord.Offset`/`FileBlockOffset`) rather than truncating to 32 bits.
+Malformed archives throw `InvalidDataException`/`EndOfStreamException`.
+
+### BSA regression fixtures
+
+The default BSA/CLI suites use generated archives and do not require game installations.
+For a supplied BSA, create an independently verified UTF-8 manifest containing every
+entry as `SHA256<TAB>archive-relative-path` (one entry per line, optional `#` comments).
+Use hashes from original files or extraction by a trusted independent tool, rather
+than generating the expected values with this parser.
+
+```powershell
+$env:BSA_TEST_ARCHIVE = 'D:\Fixtures\regression.bsa'
+$env:BSA_TEST_MANIFEST = 'D:\Fixtures\regression.sha256.tsv'
+dotnet test --project tests/BethesdaArchiveParser.Core.Tests
+
+# Optional local smoke check: parse every BSA and stream every entry to Stream.Null
+$env:BSA_VERIFY_DIRECTORY = 'D:\SteamLibrary\steamapps\common\Fallout New Vegas\Data'
+dotnet test --project tests/BethesdaArchiveParser.Core.Tests
+```
+
+External tests skip unless their environment variables are set. The manifest test
+checks the full entry set and hashes through both sync and async streaming APIs.
+The local smoke check verifies structural/decompression consistency, not independent
+content correctness. No game archives are included in the repository.
 
 ## Model viewer
 

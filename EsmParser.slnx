@@ -14,6 +14,8 @@
     <Project Path="src/EsmParser.Web/EsmParser.Web.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/BethesdaArchiveParser.Core.Tests/BethesdaArchiveParser.Core.Tests.csproj" />
+    <Project Path="tests/BsaParser.Cli.Tests/BsaParser.Cli.Tests.csproj" />
     <Project Path="tests/EsmParser.Core.Tests/EsmParser.Core.Tests.csproj" />
   </Folder>
 </Solution>

@@ -1,40 +1,56 @@
 namespace BethesdaArchiveParser.Core;
 
-public sealed class BsaArchive(BinaryBsaHeader Header, List<BsaFolderRecord> Folders, List<BsaFileBlockRecord> FileBlocks, List<string> FileNames)
-{
-    public BinaryBsaHeader Header { get; } = Header;
-    public List<BsaFolderRecord> Folders { get; } = Folders;
-    public List<BsaFileBlockRecord> FileBlocks { get; } = FileBlocks;
-    public List<string> FileNames { get; } = FileNames;
+public sealed record BsaEntry(string Path, BsaFileRecord File);
 
-    // Read optimized views
-    private readonly Dictionary<ulong, BsaFolderRecord> _folderHashLookup = Folders.ToDictionary(static f => f.FolderHash, static f => f);
-    private readonly Dictionary<ulong, BsaFileBlockRecord> _folderFilesLookup = FileBlocks.ToDictionary(static f => BsaHash.Compute(f.FolderName!), static f => f);
-    private readonly Dictionary<ulong, string> _fileNameLookup = FileNames.Distinct().ToDictionary(static f => BsaHash.Compute(f), static f => f);
+public sealed class BsaArchive
+{
+    private readonly Dictionary<string, BsaFileRecord> _files = [with(StringComparer.OrdinalIgnoreCase)];
+
+    public BsaArchive(BinaryBsaHeader header, List<BsaFolderRecord> folders, List<BsaFileBlockRecord> fileBlocks, List<string> fileNames)
+    {
+        ArgumentNullException.ThrowIfNull(folders);
+        ArgumentNullException.ThrowIfNull(fileBlocks);
+        ArgumentNullException.ThrowIfNull(fileNames);
+        Header = header;
+        Folders = folders;
+        FileBlocks = fileBlocks;
+        FileNames = fileNames;
+        var entries = new List<BsaEntry>(fileNames.Count);
+        int index = 0;
+        foreach (var block in fileBlocks)
+        {
+            foreach (var file in block.Files)
+            {
+                if (index >= fileNames.Count)
+                {
+                    throw new InvalidDataException("Missing BSA filenames.");
+                }
+                string name = fileNames[index++];
+                string path = string.IsNullOrEmpty(block.FolderName) ? name : $"{block.FolderName}\\{name}";
+                path = path.Replace('/', '\\');
+                entries.Add(new BsaEntry(path, file));
+                if (!_files.TryAdd(path, file))
+                {
+                    throw new InvalidDataException($"Duplicate BSA path: {path}");
+                }
+            }
+        }
+        if (index != fileNames.Count)
+        {
+            throw new InvalidDataException("Extra BSA filenames.");
+        }
+        Entries = entries.AsReadOnly();
+    }
+
+    public BinaryBsaHeader Header { get; }
+    public List<BsaFolderRecord> Folders { get; }
+    public List<BsaFileBlockRecord> FileBlocks { get; }
+    public List<string> FileNames { get; }
+    public IReadOnlyList<BsaEntry> Entries { get; }
 
     public BsaFileRecord? GetFileByPath(string path)
     {
-        if (path.Contains('/'))
-        {
-            path = path.Replace('/', '\\');
-        }
-        var lastSlash = path.LastIndexOf('\\');
-        var folderPath = lastSlash == -1 ? string.Empty : path[..lastSlash];
-        var fileName = lastSlash == -1 ? path : path[(lastSlash + 1)..];
-
-        var folderHash = BsaHash.Compute(folderPath);
-        if (!_folderHashLookup.TryGetValue(folderHash, out var _))
-        {
-            return null;
-        }
-
-        if (!_folderFilesLookup.TryGetValue(folderHash, out var fileBlock))
-        {
-            return null;
-        }
-        var fileHash = BsaHash.Compute(fileName);
-        return fileBlock.GetFileByNameHash(fileHash);
+        ArgumentNullException.ThrowIfNull(path);
+        return _files.GetValueOrDefault(path.Replace('/', '\\'));
     }
-
-    private string? GetFileNameByHash(ulong hash) => _fileNameLookup.TryGetValue(hash, out var fileName) ? fileName : null;
 }
