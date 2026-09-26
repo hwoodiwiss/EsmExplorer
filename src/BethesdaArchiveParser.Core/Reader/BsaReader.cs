@@ -58,23 +58,23 @@ internal sealed class BsaReader(BinaryBsaHeader Header, Stream Stream, bool asyn
 
     public async ValueTask<string> ReadBzString()
     {
-        var length = Stream.ReadByte();
-        if (length == -1)
+        var singleByteArray = await ReadBytesAsync(1);
+        if (singleByteArray.Length != 1)
         {
             throw new EndOfStreamException("Unexpected end of stream while reading BzString.");
         }
-        var bytes = await ReadBytesAsync(length);
+        var bytes = await ReadBytesAsync(singleByteArray[0]);
         return Encoding.GetEncoding(1252).GetString(bytes[..^1]);
     }
 
     public async ValueTask<string> ReadBString()
     {
-        var length = Stream.ReadByte();
-        if (length == -1)
+        var singleByteArray = await ReadBytesAsync(1);
+        if (singleByteArray.Length != 1)
         {
-            throw new EndOfStreamException("Unexpected end of stream while reading BString.");
+            throw new EndOfStreamException("Unexpected end of stream while reading BzString.");
         }
-        var bytes = await ReadBytesAsync(length);
+        var bytes = await ReadBytesAsync(singleByteArray[0]);
         return Encoding.GetEncoding(1252).GetString(bytes);
     }
 
