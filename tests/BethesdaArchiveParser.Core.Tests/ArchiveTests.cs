@@ -27,7 +27,7 @@ public sealed class ArchiveTests
         var archive = syncReader.ReadBsaArchive();
         var asyncArchive = await asyncReader.ReadBsaArchiveAsync();
         await Assert.That(archive.Entries.Count).IsEqualTo(2);
-        await Assert.That(archive.Header.Version).IsEqualTo(version);
+        await Assert.That((uint)archive.Header.Version).IsEqualTo(version);
         await Assert.That(archive.Entries[0].Path).IsEqualTo("meshes\\first.bin");
         await Assert.That(archive.GetFileByPath("MESHES/first.BIN")).IsEqualTo(archive.Entries[0].File);
         await Assert.That(archive.Folders[0].FileOffsets[1] - archive.Folders[0].FileOffsets[0]).IsEqualTo(16L);
@@ -45,6 +45,33 @@ public sealed class ArchiveTests
         }
         await Assert.That(sync.CanRead).IsTrue();
         await Assert.That(asyncStream.AsyncReads > 0).IsTrue();
+    }
+
+    [Test]
+    [Arguments(103u, BsaVersion.Oblivion)]
+    [Arguments(104u, BsaVersion.Fallout3AndSkyrim)]
+    [Arguments(105u, BsaVersion.SkyrimSpecialEdition)]
+    public async Task Maps_wire_versions_to_named_formats(uint wireVersion, BsaVersion expected)
+    {
+        using var stream = new MemoryStream(BsaFixture.Create(version: wireVersion));
+        var reader = new BsaArchiveReader(stream);
+        await Assert.That(reader.ReadBsaArchive().Header.Version).IsEqualTo(expected);
+        await Assert.That((await reader.ReadBsaArchiveAsync()).Header.Version).IsEqualTo(expected);
+    }
+
+    [Test]
+    [Arguments(0u)]
+    [Arguments(102u)]
+    [Arguments(106u)]
+    [Arguments(uint.MaxValue)]
+    public async Task Rejects_unknown_wire_versions_in_both_modes(uint version)
+    {
+        byte[] bytes = BsaFixture.Create();
+        BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(4), version);
+        using var stream = new MemoryStream(bytes);
+        var reader = new BsaArchiveReader(stream);
+        await Assert.That(() => reader.ReadBsaArchive()).Throws<InvalidDataException>();
+        await Assert.That(async () => await reader.ReadBsaArchiveAsync()).Throws<InvalidDataException>();
     }
 
     [Test]

@@ -7,7 +7,7 @@ public struct BinaryBsaHeader
 {
     [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 4)]
     public string MagicBytes;
-    public uint Version;
+    public BsaVersion Version;
     public uint RecordOffset;
     public BsaArchiveFlags ArchiveFlags;
     public uint FolderCount;

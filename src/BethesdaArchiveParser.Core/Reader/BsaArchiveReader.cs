@@ -69,7 +69,8 @@ public sealed class BsaArchiveReader
         }
         using var scope = new ScopedOffset(_stream, file.Offset);
         byte[] scratch = new byte[4];
-        if (file.Header.Version >= 104 && file.Header.ArchiveFlags.HasFlag(BsaArchiveFlags.EmbedFileNames))
+        if (file.Header.Version is BsaVersion.Fallout3AndSkyrim or BsaVersion.SkyrimSpecialEdition
+            && file.Header.ArchiveFlags.HasFlag(BsaArchiveFlags.EmbedFileNames))
         {
             if (size == 0)
             {

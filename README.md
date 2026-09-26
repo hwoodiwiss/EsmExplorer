@@ -198,6 +198,10 @@ Supported: named PC BSA versions 103/104 (zlib) and 105 (LZ4 frames), including
 per-file compression overrides and embedded names. Xbox/XMem archives and archives
 without directory/file names are explicitly rejected. Version 105 folder offsets now
 use `ulong` (`BsaFolderRecord.Offset`/`FileBlockOffset`) rather than truncating to 32 bits.
+`BinaryBsaHeader.Version` uses the `uint`-backed `BsaVersion` enum: `Oblivion` (103),
+`Fallout3AndSkyrim` (104, including New Vegas), and `SkyrimSpecialEdition` (105).
+These mappings follow the [UESP format documentation](https://en.uesp.net/wiki/Skyrim_Mod:Archive_File_Format).
+Unknown versions are rejected as unsupported rather than interpreted using an assumed layout.
 Malformed archives throw `InvalidDataException`/`EndOfStreamException`.
 
 ### BSA regression fixtures

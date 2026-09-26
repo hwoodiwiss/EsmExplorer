@@ -142,7 +142,7 @@ internal sealed class BsaReader(Stream stream, bool isAsync, CancellationToken c
         var header = new BinaryBsaHeader
         {
             MagicBytes = "BSA\0",
-            Version = BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(4)),
+            Version = (BsaVersion)BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(4)),
             RecordOffset = BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(8)),
             ArchiveFlags = (BsaArchiveFlags)BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(12)),
             FolderCount = BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(16)),
@@ -152,9 +152,10 @@ internal sealed class BsaReader(Stream stream, bool isAsync, CancellationToken c
             FileFlags = (BsaFileFlags)BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(32)),
             Padding = BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(34)),
         };
-        if (header.Version is not (103 or 104 or 105))
+        // Only dispatch layouts we implement; an unknown version is not necessarily an invalid BSA.
+        if (header.Version is not (BsaVersion.Oblivion or BsaVersion.Fallout3AndSkyrim or BsaVersion.SkyrimSpecialEdition))
         {
-            throw new InvalidDataException($"Unsupported BSA version {header.Version}.");
+            throw new InvalidDataException($"Unsupported BSA version {(uint)header.Version}.");
         }
         if ((header.ArchiveFlags & (BsaArchiveFlags.Xbox360Archive | BsaArchiveFlags.XMemCodec)) != 0)
         {
@@ -165,7 +166,7 @@ internal sealed class BsaReader(Stream stream, bool isAsync, CancellationToken c
         {
             throw new InvalidDataException("BSA directory and file names are required.");
         }
-        long recordBytes = (long)header.FolderCount * (header.Version == 105 ? 24 : 16);
+        long recordBytes = (long)header.FolderCount * (header.Version == BsaVersion.SkyrimSpecialEdition ? 24 : 16);
         if (header.RecordOffset < 36 || header.RecordOffset > stream.Length || recordBytes > stream.Length - header.RecordOffset
             || header.FileCount > int.MaxValue || (long)header.FileCount * 16 > stream.Length)
         {

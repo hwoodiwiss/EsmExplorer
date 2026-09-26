@@ -6,7 +6,7 @@ namespace BethesdaArchiveParser.Core.Reader;
 
 internal static class BsaPayload
 {
-    public static async ValueTask<long> Copy(Stream source, Stream destination, uint version, long offset,
+    public static async ValueTask<long> Copy(Stream source, Stream destination, BsaVersion version, long offset,
         uint storedSize, uint expandedSize, bool compressed, bool isAsync, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(destination);
@@ -25,7 +25,12 @@ internal static class BsaPayload
         using var scope = new ScopedOffset(source, offset);
         using var bounded = new BoundedReadStream(source, storedSize);
         using Stream? decoder = compressed
-            ? version <= 104 ? new ZLibStream(bounded, CompressionMode.Decompress, true) : LZ4Stream.Decode(bounded, leaveOpen: true)
+            ? version switch
+            {
+                BsaVersion.Oblivion or BsaVersion.Fallout3AndSkyrim => new ZLibStream(bounded, CompressionMode.Decompress, true),
+                BsaVersion.SkyrimSpecialEdition => LZ4Stream.Decode(bounded, leaveOpen: true),
+                _ => throw new InvalidDataException($"Unsupported BSA version {(uint)version}."),
+            }
             : null;
         Stream input = decoder ?? bounded;
         byte[] buffer = ArrayPool<byte>.Shared.Rent(81920);

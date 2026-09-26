@@ -11,11 +11,11 @@ internal sealed class BsaContentReader(BinaryBsaHeader header, BsaReader reader)
         {
             ulong hash = await reader.ReadUInt64().ConfigureAwait(false);
             uint count = await reader.ReadUInt32().ConfigureAwait(false);
-            if (header.Version == 105)
+            if (header.Version == BsaVersion.SkyrimSpecialEdition)
             {
                 _ = await reader.ReadUInt32().ConfigureAwait(false);
             }
-            ulong offset = header.Version == 105
+            ulong offset = header.Version == BsaVersion.SkyrimSpecialEdition
                 ? await reader.ReadUInt64().ConfigureAwait(false)
                 : await reader.ReadUInt32().ConfigureAwait(false);
             if (offset < header.TotalFileNameLength || offset > long.MaxValue)
