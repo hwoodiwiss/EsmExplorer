@@ -32,7 +32,7 @@ public sealed record RawValue(string? Note = null);
 /// <summary>
 /// A field payload decoded per the record schema, in the shape an editor would present it.
 /// </summary>
-public union DecodedValue(
+public readonly union DecodedValue(
     TextValue,
     LocalizedTextValue,
     BooleanValue,

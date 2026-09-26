@@ -25,7 +25,7 @@ public sealed class SignatureTests
     {
         byte[] destination = new byte[4];
         KnownSignatures.Grup.WriteTo(destination);
-        await Assert.That(destination).IsEquivalentTo(new byte[] { (byte)'G', (byte)'R', (byte)'U', (byte)'P' });
+        await Assert.That(destination).IsEquivalentTo([(byte)'G', (byte)'R', (byte)'U', (byte)'P']);
     }
 
     [Test]
@@ -104,9 +104,7 @@ public sealed class RecordFlagsTests
 
     [Test]
     public async Task GetFlagNames_Is_Empty_For_None()
-    {
-        await Assert.That(RecordFlags.None.GetFlagNames().Count).IsEqualTo(0);
-    }
+        => await Assert.That(RecordFlags.None.GetFlagNames().Count).IsEqualTo(0);
 
     [Test]
     public async Task Starfield_Plugin_Scale_Bits_Have_Starfield_Values()

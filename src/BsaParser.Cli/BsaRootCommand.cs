@@ -47,7 +47,9 @@ internal sealed class UnpackDirectoryCommand : Command
         Validators.Add(result =>
         {
             if (result.GetValue(all) && result.GetValue(archives) is { Length: > 0 })
+            {
                 result.AddError("--all and --archive cannot be combined.");
+            }
         });
         SetAction((result, token) => application.UnpackDirectoryAsync(result.GetRequiredValue(input), result.GetRequiredValue(output),
             result.GetValue(archives) ?? [], result.GetValue(all), result.GetValue(nonInteractive), result.GetValue(overwrite), token));

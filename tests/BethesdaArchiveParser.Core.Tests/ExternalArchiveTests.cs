@@ -62,7 +62,9 @@ public sealed class ExternalArchiveTests
             var archive = await reader.ReadBsaArchiveAsync();
             await Assert.That(archive.Entries.Count).IsEqualTo((int)archive.Header.FileCount);
             foreach (var entry in archive.Entries)
+            {
                 await reader.CopyBsaFileToAsync(entry.File, Stream.Null);
+            }
             Console.WriteLine($"Verified {Path.GetFileName(path)}: {archive.Entries.Count} entries");
         }
     }

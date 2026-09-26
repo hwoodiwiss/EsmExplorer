@@ -31,7 +31,10 @@ internal static class BsaFixture
                     : new ZLibStream(payload, CompressionLevel.SmallestSize, true);
                 encoder.Write(contents[i]);
             }
-            else writer.Write(contents[i]);
+            else
+            {
+                writer.Write(contents[i]);
+            }
             payloads.Add(payload.ToArray());
         }
         int folderRecordSize = version == 105 ? 24 : 16;
@@ -52,9 +55,18 @@ internal static class BsaFixture
         binary.Write(0u);
         binary.Write(0x1234UL);
         binary.Write(2u);
-        if (version == 105) binary.Write(0u);
-        if (version == 105) binary.Write((ulong)(blockOffset + nameBytes.Length));
-        else binary.Write((uint)(blockOffset + nameBytes.Length));
+        if (version == 105)
+        {
+            binary.Write(0u);
+        }
+        if (version == 105)
+        {
+            binary.Write((ulong)(blockOffset + nameBytes.Length));
+        }
+        else
+        {
+            binary.Write((uint)(blockOffset + nameBytes.Length));
+        }
         binary.Write((byte)(folderBytes.Length + 1));
         binary.Write(folderBytes);
         binary.Write((byte)0);
@@ -66,7 +78,10 @@ internal static class BsaFixture
             dataOffset += payloads[i].Length;
         }
         binary.Write(nameBytes);
-        foreach (var payload in payloads) binary.Write(payload);
+        foreach (var payload in payloads)
+        {
+            binary.Write(payload);
+        }
         // Catches accidental copy-to-EOF and oversized compressed reads.
         binary.Write("trailing archive bytes"u8);
         return stream.ToArray();

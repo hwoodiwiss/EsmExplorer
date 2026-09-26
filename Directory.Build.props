@@ -4,10 +4,12 @@
     <Copyright>Hugo Woodiwiss (c) 2023-$([System.DateTime]::Now.ToString(yyyy))</Copyright>
     <Description></Description>
     <Deterministic>true</Deterministic>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>preview</LangVersion>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-    <NoWarn>$(NoWarn);CA2007;CA1515</NoWarn>
+    <NoWarn>$(NoWarn);CA2007;CA1515;CS1591</NoWarn>
     <Nullable>enable</Nullable>
     <RepositoryType>git</RepositoryType>
     <TargetFramework>net11.0</TargetFramework>
@@ -17,5 +19,5 @@
 
   <PropertyGroup>
   </PropertyGroup>
-  
+
 </Project>

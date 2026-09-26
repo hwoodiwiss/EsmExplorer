@@ -8,7 +8,10 @@ namespace EsmParser.Core.Format;
 /// </summary>
 public readonly record struct Signature
 {
-    public Signature(uint value) => Value = value;
+    public Signature(uint value)
+    {
+        Value = value;
+    }
 
     /// <summary>The raw little-endian value as stored in the file.</summary>
     public uint Value { get; }
@@ -51,7 +54,7 @@ public readonly record struct Signature
             for (int i = 0; i < 4; i++)
             {
                 byte b = (byte)(Value >> (i * 8));
-                if (b < 0x20 || b > 0x7E)
+                if (b is < 0x20 or > 0x7E)
                 {
                     return false;
                 }

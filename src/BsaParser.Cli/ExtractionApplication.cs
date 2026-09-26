@@ -18,21 +18,27 @@ internal sealed class ExtractionApplication(IAnsiConsole console, bool terminalI
             var candidates = Directory.EnumerateFiles(input)
                 .Where(static path => Path.GetExtension(path).Equals(".bsa", StringComparison.OrdinalIgnoreCase))
                 .Order(StringComparer.OrdinalIgnoreCase).ToArray();
-            if (candidates.Length == 0) throw new IOException($"No BSA files found in {input}.");
+            if (candidates.Length == 0)
+            {
+                throw new IOException($"No BSA files found in {input}.");
+            }
             bool interactive = CanInteract(nonInteractive);
             string[] selected;
-            if (all) selected = candidates;
+            if (all)
+            {
+                selected = candidates;
+            }
             else if (names.Length > 0)
             {
-                selected = names.Select(name => candidates.FirstOrDefault(path => string.Equals(Path.GetFileName(path), name, StringComparison.OrdinalIgnoreCase))
-                    ?? throw new IOException($"BSA not found in input directory: {name}")).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+                selected = [.. names.Select(name => candidates.FirstOrDefault(path => string.Equals(Path.GetFileName(path), name, StringComparison.OrdinalIgnoreCase))
+                    ?? throw new IOException($"BSA not found in input directory: {name}")).Distinct(StringComparer.OrdinalIgnoreCase)];
             }
             else if (interactive)
             {
-                selected = (await console.PromptAsync(new MultiSelectionPrompt<string>()
+                selected = [.. await console.PromptAsync(new MultiSelectionPrompt<string>()
                     .Title("Select [green]BSA archives[/] to unpack")
                     .Required().PageSize(15).UseConverter(static path => Markup.Escape(Path.GetFileName(path)))
-                    .AddChoices(candidates), token).ConfigureAwait(false)).ToArray();
+                    .AddChoices(candidates), token).ConfigureAwait(false)];
             }
             else
             {
@@ -56,10 +62,8 @@ internal sealed class ExtractionApplication(IAnsiConsole console, bool terminalI
                 token.ThrowIfCancellationRequested();
                 try
                 {
-                    int count;
-                    if (interactive)
-                    {
-                        count = await console.Progress().AutoClear(true).StartAsync(async context =>
+                    int count = interactive
+                        ? await console.Progress().AutoClear(true).StartAsync(async context =>
                         {
                             var task = context.AddTask(Markup.Escape(Path.GetFileName(archive)));
                             return await ArchiveExtractor.ExtractAsync(archive, output, overwrite, (done, total) =>
@@ -67,9 +71,8 @@ internal sealed class ExtractionApplication(IAnsiConsole console, bool terminalI
                                 task.MaxValue = Math.Max(total, 1);
                                 task.Value = total == 0 ? 1 : done;
                             }, token).ConfigureAwait(false);
-                        }).ConfigureAwait(false);
-                    }
-                    else count = await ArchiveExtractor.ExtractAsync(archive, output, overwrite, null, token).ConfigureAwait(false);
+                        }).ConfigureAwait(false)
+                        : await ArchiveExtractor.ExtractAsync(archive, output, overwrite, null, token).ConfigureAwait(false);
                     fileCount += count;
                     console.WriteLine($"Unpacked {Path.GetFileName(archive)}: {count} files -> {output}");
                 }

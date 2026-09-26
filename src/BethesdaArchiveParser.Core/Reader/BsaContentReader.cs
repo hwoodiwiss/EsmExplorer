@@ -11,17 +11,28 @@ internal sealed class BsaContentReader(BinaryBsaHeader header, BsaReader reader)
         {
             ulong hash = await reader.ReadUInt64().ConfigureAwait(false);
             uint count = await reader.ReadUInt32().ConfigureAwait(false);
-            if (header.Version == 105) _ = await reader.ReadUInt32().ConfigureAwait(false);
+            if (header.Version == 105)
+            {
+                _ = await reader.ReadUInt32().ConfigureAwait(false);
+            }
             ulong offset = header.Version == 105
                 ? await reader.ReadUInt64().ConfigureAwait(false)
                 : await reader.ReadUInt32().ConfigureAwait(false);
             if (offset < header.TotalFileNameLength || offset > long.MaxValue)
+            {
                 throw new InvalidDataException("Invalid folder offset.");
+            }
             fileCount += count;
-            if (fileCount > header.FileCount) throw new InvalidDataException("Folder file counts exceed the header count.");
+            if (fileCount > header.FileCount)
+            {
+                throw new InvalidDataException("Folder file counts exceed the header count.");
+            }
             folders.Add(new BsaFolderRecord(header, hash, count, offset, null, []));
         }
-        if (fileCount != header.FileCount) throw new InvalidDataException("Folder file counts do not match the header.");
+        if (fileCount != header.FileCount)
+        {
+            throw new InvalidDataException("Folder file counts do not match the header.");
+        }
 
         // Filename order follows the physical file blocks, not hash order.
         folders.Sort(static (a, b) => a.Offset.CompareTo(b.Offset));
@@ -29,7 +40,10 @@ internal sealed class BsaContentReader(BinaryBsaHeader header, BsaReader reader)
         for (int i = 0; i < folders.Count; i++)
         {
             var folder = folders[i];
-            if ((long)folder.FileBlockOffset < reader.Position) throw new InvalidDataException("Overlapping folder blocks.");
+            if ((long)folder.FileBlockOffset < reader.Position)
+            {
+                throw new InvalidDataException("Overlapping folder blocks.");
+            }
             reader.Seek((long)folder.FileBlockOffset);
             string name = await reader.ReadBzString().ConfigureAwait(false);
             var files = new List<BsaFileRecord>((int)folder.FileCount);

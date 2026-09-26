@@ -19,11 +19,19 @@ internal static class ArchiveExtractor
         {
             cancellationToken.ThrowIfCancellationRequested();
             string target = GetDestination(root, entry.Path);
-            if (!paths.Add(target)) throw new IOException($"Multiple entries map to {target}.");
+            if (!paths.Add(target))
+            {
+                throw new IOException($"Multiple entries map to {target}.");
+            }
             if (string.Equals(target, Path.GetFullPath(archivePath), OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+            {
                 throw new IOException("An entry would overwrite the input archive.");
+            }
             CheckExistingPath(target);
-            if (File.Exists(target) && !overwrite) throw new IOException($"File already exists: {target}. Use --overwrite to replace it.");
+            if (File.Exists(target) && !overwrite)
+            {
+                throw new IOException($"File already exists: {target}. Use --overwrite to replace it.");
+            }
             targets.Add(target);
         }
         int completed = 0;
@@ -46,7 +54,13 @@ internal static class ArchiveExtractor
                 cancellationToken.ThrowIfCancellationRequested();
                 File.Move(temporary, target, overwrite);
             }
-            finally { if (File.Exists(temporary)) File.Delete(temporary); }
+            finally
+            {
+                if (File.Exists(temporary))
+                {
+                    File.Delete(temporary);
+                }
+            }
             completed++;
             progress?.Invoke(completed, targets.Count);
         }
@@ -59,7 +73,9 @@ internal static class ArchiveExtractor
         string[] parts = entryPath.Replace('\\', '/').Split('/');
         if (parts.Any(static part => part.Length == 0 || part is "." or ".." || part.EndsWith('.') || part.EndsWith(' ')
             || part.Any(static c => c < 32 || "<>:\"|?*".Contains(c)) || IsDeviceName(part)))
+        {
             throw new InvalidDataException($"Unsafe archive path: {entryPath}");
+        }
         return Path.Combine([Path.GetFullPath(root), .. parts]);
     }
 
@@ -79,7 +95,9 @@ internal static class ArchiveExtractor
             try
             {
                 if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
+                {
                     throw new IOException($"Extraction through symbolic links/reparse points is not supported: {current}");
+                }
             }
             catch (FileNotFoundException) { }
             catch (DirectoryNotFoundException) { }

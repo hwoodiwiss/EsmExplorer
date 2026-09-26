@@ -37,13 +37,9 @@ public abstract class PluginNode
 }
 
 /// <summary>A record occurrence: a 24-byte header plus a data payload of fields.</summary>
-public sealed class RecordNode : PluginNode
+public sealed class RecordNode(long offset, int depth, RecordHeader header) : PluginNode(offset, depth)
 {
-    public RecordNode(long offset, int depth, RecordHeader header)
-        : base(offset, depth)
-        => Header = header;
-
-    public RecordHeader Header { get; }
+    public RecordHeader Header { get; } = header;
 
     public override long DataSize => Header.DataSize;
 
@@ -56,13 +52,9 @@ public sealed class RecordNode : PluginNode
 }
 
 /// <summary>A GRUP container holding records and/or nested groups.</summary>
-public sealed class GroupNode : PluginNode
+public sealed class GroupNode(long offset, int depth, GroupHeader header) : PluginNode(offset, depth)
 {
-    public GroupNode(long offset, int depth, GroupHeader header)
-        : base(offset, depth)
-        => Header = header;
-
-    public GroupHeader Header { get; }
+    public GroupHeader Header { get; } = header;
 
     public override long DataSize => Header.ContentSize;
 

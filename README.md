@@ -117,6 +117,13 @@ dotnet test             # full test suite
 dotnet run --project src/EsmParser.Web   # explorer at http://localhost:5246
 ```
 
+Code-style analysis runs during builds (`EnforceCodeStyleInBuild`) and reported
+warnings fail the build (`TreatWarningsAsErrors`). `.editorconfig` explicitly
+requires braces, including single-line control statements, with `IDE0011` set to
+error in the editor and build. Existing suggestion/disabled rule overrides retain
+their severity. XML documentation is generated to enable build-time unnecessary
+`using` analysis; missing XML comments (`CS1591`) are not enforced.
+
 In the explorer, open one or more `.esm`/`.esp`/`.esl` files (load a mod together with
 its masters to follow references between them), then browse the tree: groups expand
 lazily, records show a decoded editor-style form view alongside their header metadata,

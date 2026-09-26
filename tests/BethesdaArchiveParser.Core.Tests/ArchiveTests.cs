@@ -130,17 +130,26 @@ public sealed class ArchiveTests
         public int AsyncReads { get; private set; }
         public override int Read(byte[] buffer, int offset, int count)
         {
-            if (asyncOnly) throw new InvalidOperationException("Synchronous I/O in async mode.");
+            if (asyncOnly)
+            {
+                throw new InvalidOperationException("Synchronous I/O in async mode.");
+            }
             return base.Read(buffer, offset, Math.Min(count, 7));
         }
         public override int Read(Span<byte> buffer)
         {
-            if (asyncOnly) throw new InvalidOperationException("Synchronous I/O in async mode.");
+            if (asyncOnly)
+            {
+                throw new InvalidOperationException("Synchronous I/O in async mode.");
+            }
             return base.Read(buffer[..Math.Min(buffer.Length, 7)]);
         }
         public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         {
-            if (!asyncOnly) throw new InvalidOperationException("Async I/O in sync mode.");
+            if (!asyncOnly)
+            {
+                throw new InvalidOperationException("Async I/O in sync mode.");
+            }
             cancellationToken.ThrowIfCancellationRequested();
             AsyncReads++;
             await Task.Yield();

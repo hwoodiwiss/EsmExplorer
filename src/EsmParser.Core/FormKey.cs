@@ -1,5 +1,3 @@
-using EsmParser.Core.Format;
-
 namespace EsmParser.Core;
 
 /// <summary>

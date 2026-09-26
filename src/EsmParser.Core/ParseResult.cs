@@ -58,7 +58,7 @@ public readonly record struct Success<T>(T Value);
 /// <summary>
 /// The outcome of a parsing operation: either <see cref="Success{T}"/> or a <see cref="ParseError"/>.
 /// </summary>
-public union ParseResult<T>(Success<T>, ParseError)
+public readonly union ParseResult<T>(Success<T>, ParseError)
 {
     public bool IsSuccess => this is Success<T>;
 

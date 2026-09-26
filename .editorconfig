@@ -26,6 +26,10 @@ indent_size = 2
 
 #### Core EditorConfig Options ####
 
+# IDE0011: Always require braces, including single-line statements.
+csharp_prefer_braces = true
+dotnet_diagnostic.IDE0011.severity = error
+
 # CA1711: the mod file format spec calls these values "flags" (e.g. RecordFlags), so allow the suffix.
 dotnet_code_quality.ca1711.allowed_suffixes = Flags
 

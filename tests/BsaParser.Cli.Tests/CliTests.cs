@@ -198,6 +198,12 @@ public sealed class CliTests
             File.WriteAllBytes(path, bytes ?? BsaFixture.Create());
             return path;
         }
-        public void Dispose() { if (Directory.Exists(_root)) Directory.Delete(_root, true); }
+        public void Dispose()
+        {
+            if (Directory.Exists(_root))
+            {
+                Directory.Delete(_root, true);
+            }
+        }
     }
 }
