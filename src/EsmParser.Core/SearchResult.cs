@@ -12,4 +12,4 @@ public readonly record struct RecordNotFound;
 /// The outcome of a record search: found, exhaustively not found, or the scan
 /// failed because the file is malformed.
 /// </summary>
-public union SearchResult(RecordFound, RecordNotFound, ParseError);
+public readonly union SearchResult(RecordFound, RecordNotFound, ParseError);

@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="Microsoft.Playwright" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
+    <PackageReference Include="NifViewer.Blazor" />
+    <ProjectReference Include="../../src/BethesdaArchiveParser.Core/BethesdaArchiveParser.Core.csproj" />
+    <!-- Test browser-independent orchestration with fake JS interop on the host runtime. -->
+    <Compile Include="../../src/EsmParser.Web/Services/GameDataService.cs" Link="GameDataService.cs" />
+    <Compile Include="../../src/EsmParser.Web/Interop/SeekablePullFromJSDataStream.cs" Link="SeekablePullFromJSDataStream.cs" />
+    <Compile Include="../BethesdaArchiveParser.Core.Tests/BsaFixture.cs" Link="BsaFixture.cs" />
+    <Using Include="Microsoft.Extensions.Logging" />
+  </ItemGroup>
+</Project>

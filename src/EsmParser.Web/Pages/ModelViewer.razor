@@ -27,14 +27,49 @@
             <span class="data-root-help-icon">i</span>
             <span class="data-root-help-popover">
                 <strong>Data root setup</strong>
-                <span>1. Extract the Starfield BA2 files into a resource folder.</span>
-                <span>2. Extract Creation Kit <code>ContentResources.zip</code> and copy its <code>Materials</code> folder into the resource folder.</span>
-                <span>3. Choose that folder here. Files are read only when needed.</span>
+                <span>For New Vegas and other BSA-based games, choose the installed <code>Data</code> directory directly. BSA files are indexed and assets are read on demand.</span>
+                <span>Loose files override archived assets. Duplicate archived paths use the last archive in filename order, not the game's load order.</span>
+                <span>For Starfield, extract the BA2 files and Creation Kit materials into a resource folder first.</span>
                 <a href="https://github.com/hwoodiwiss/EsmExplorer#preparing-starfield-resources" target="_blank" rel="noopener noreferrer">Open full instructions</a>
             </span>
         </span>
     </div>
 </div>
+
+@if (GameData.HasRoot)
+{
+    <div class="my-2">
+        <div class="input-group input-group-sm">
+            <input class="form-control" aria-label="Data-relative model path" placeholder="meshes/…/model.nif"
+                   @bind="_pathInput" @bind:event="oninput" disabled="@_loading" />
+            <button class="btn btn-outline-primary" disabled="@(_loading || string.IsNullOrWhiteSpace(_pathInput))"
+                    @onclick="() => LoadModelAsync(_pathInput)">Load path</button>
+        </div>
+        <details class="mt-2">
+            <summary>Browse archived models (@GameData.ArchiveCount BSA archives)</summary>
+            <input class="form-control form-control-sm my-2" aria-label="Filter archived models" placeholder="Filter model paths…"
+                   @bind="_modelFilter" @bind:event="oninput" />
+            <div style="max-height: 16rem; overflow-y: auto;">
+                @foreach (string path in GameData.ArchivedModelPaths.Where(p => p.Contains(_modelFilter, StringComparison.OrdinalIgnoreCase)).Order(StringComparer.OrdinalIgnoreCase).Take(100))
+                {
+                    <button class="btn btn-link btn-sm d-block text-start" disabled="@_loading" @onclick="() => LoadModelAsync(path)">@path</button>
+                }
+            </div>
+            <small>Showing up to 100 matches. Filter to narrow the list.</small>
+        </details>
+    </div>
+}
+
+@if (GameData.ArchiveErrors.Count > 0)
+{
+    <details class="alert alert-warning py-2">
+        <summary>@GameData.ArchiveErrors.Count archive(s) could not be indexed</summary>
+        @foreach (string error in GameData.ArchiveErrors)
+        {
+            <div>@error</div>
+        }
+    </details>
+}
 
 @if (_unsupported)
 {
@@ -87,6 +122,8 @@
     private string? _modelName;
     private string? _status;
     private string? _pendingPath;
+    private string _pathInput = string.Empty;
+    private string _modelFilter = string.Empty;
     private bool _loading;
     private bool _unsupported;
     private bool _structureOpen;
@@ -117,18 +154,35 @@
 
     private async Task PickDataRootAsync()
     {
-        if (_unsupported || !await GameData.PickAsync())
+        if (_unsupported)
         {
             return;
         }
-
-        if (_pendingPath is not null)
+        _loading = true;
+        _status = "Choose a Data folder; indexing BSA archives…";
+        try
         {
-            await LoadModelAsync(_pendingPath);
+            if (!await GameData.PickAsync())
+            {
+                _status = "Folder selection cancelled.";
+                return;
+            }
+            if (_pendingPath is not null)
+            {
+                await LoadModelAsync(_pendingPath);
+            }
+            else
+            {
+                _status = $"Data root '{GameData.RootName}' selected; {GameData.ArchiveCount} BSA archives indexed.";
+            }
         }
-        else
+        catch (Exception ex)
         {
-            _status = $"Data root '{GameData.RootName}' selected.";
+            _status = $"Could not select data root: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
         }
     }
 

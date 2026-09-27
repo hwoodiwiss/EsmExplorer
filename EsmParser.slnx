@@ -8,10 +8,15 @@
     <File Path="Directory.Packages.props" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/BethesdaArchiveParser.Core/BethesdaArchiveParser.Core.csproj" />
+    <Project Path="src/BsaParser.Cli/BsaParser.Cli.csproj" />
     <Project Path="src/EsmParser.Core/EsmParser.Core.csproj" />
     <Project Path="src/EsmParser.Web/EsmParser.Web.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/EsmParser.Web.Tests/EsmParser.Web.Tests.csproj" />
+    <Project Path="tests/BethesdaArchiveParser.Core.Tests/BethesdaArchiveParser.Core.Tests.csproj" />
+    <Project Path="tests/BsaParser.Cli.Tests/BsaParser.Cli.Tests.csproj" />
     <Project Path="tests/EsmParser.Core.Tests/EsmParser.Core.Tests.csproj" />
   </Folder>
 </Solution>

@@ -108,7 +108,10 @@ public sealed class PluginHeader
     public static PluginKind DetermineKind(RecordFlags flags, string? fileName)
     {
         string? extension = fileName is null ? null : Path.GetExtension(fileName);
-        bool hasExtension(string candidate) => string.Equals(extension, candidate, StringComparison.OrdinalIgnoreCase);
+        bool hasExtension(string candidate)
+        {
+            return string.Equals(extension, candidate, StringComparison.OrdinalIgnoreCase);
+        }
 
         if ((flags & RecordFlags.LightMaster) != 0 || hasExtension(".esl"))
         {

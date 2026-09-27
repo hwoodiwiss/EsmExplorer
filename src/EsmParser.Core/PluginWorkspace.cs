@@ -17,7 +17,7 @@ public sealed record MissingMaster(string PluginName);
 /// The outcome of resolving a form reference across the workspace: the defining record,
 /// a master that would need loading, a clean miss, or a parse failure along the way.
 /// </summary>
-public union ResolveResult(ResolvedRecord, MissingMaster, RecordNotFound, ParseError);
+public readonly union ResolveResult(ResolvedRecord, MissingMaster, RecordNotFound, ParseError);
 
 /// <summary>
 /// A set of plugins loaded together, so that form references can be followed across

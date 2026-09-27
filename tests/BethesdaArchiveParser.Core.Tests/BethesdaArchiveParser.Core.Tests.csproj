@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+    <ProjectReference Include="../../src/BethesdaArchiveParser.Core/BethesdaArchiveParser.Core.csproj" />
+    <None Include="../../scripts/Create-BsaFixtureManifest.ps1" Link="Create-BsaFixtureManifest.ps1" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
