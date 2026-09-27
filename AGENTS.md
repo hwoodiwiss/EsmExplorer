@@ -25,6 +25,10 @@ Read the more specific `AGENTS.md` when working in the CLI, archive library, or 
   Preserve bounded-memory handling of large inputs and browser compatibility.
 - Add meaningful tests for new behaviour and non-trivial bug fixes, following TUnit
   conventions. Formatting-only changes do not need new tests.
+- Write repository utility and fixture-preparation scripts in PowerShell 7+, including
+  the fixture manifest generator. Avoid introducing Node/npm tooling for these tasks.
+- Write browser smoke tests in C# with TUnit and the .NET Microsoft.Playwright bindings.
+  Keep JavaScript limited to browser interop/shims where needed, not smoke-test orchestration.
 - Preserve existing user work. Commit or push only when requested. A request for a
   safety commit applies to that task, not every subsequent edit.
 - Do not commit proprietary game archives, extracted assets, secrets, or build outputs.

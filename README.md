@@ -213,6 +213,19 @@ entry as `SHA256<TAB>archive-relative-path` (one entry per line, optional `#` co
 Use hashes from original files or extraction by a trusted independent tool, rather
 than generating the expected values with this parser.
 
+To create the manifest from your original input tree (preserving archive-relative
+directories), use PowerShell 7+:
+
+```shell
+pwsh -File scripts/Create-BsaFixtureManifest.ps1 -OriginalFilesRoot "D:/Fixtures/originals" -OutputPath "D:/Fixtures/regression.sha256.tsv"
+```
+
+The output must be a new file outside the originals directory. The script hashes
+files incrementally and rejects symlinks and case-insensitive path collisions.
+Provide the BSA alongside these originals or the resulting manifest; the independent
+fixture remains pending until supplied. Do not use this parser's extraction output
+to establish expected hashes.
+
 ```powershell
 $env:BSA_TEST_ARCHIVE = 'D:\Fixtures\regression.bsa'
 $env:BSA_TEST_MANIFEST = 'D:\Fixtures\regression.sha256.tsv'
@@ -297,6 +310,11 @@ handle tests with Node 20 or newer:
 ```shell
 node --test tests/EsmParser.Web.Tests/dataRoot.test.mjs
 ```
+
+For the opt-in real-BSA browser rendering check, see
+[`tests/EsmParser.Web.Tests/README.md`](tests/EsmParser.Web.Tests/README.md).
+The smoke test uses C#, TUnit and the .NET Playwright bindings, with configurable
+archive/model paths and screenshots for visual inspection. It skips by default.
 
 The local `NifViewer.Blazor` package is `0.1.0-preview.5`, built from the sibling
 `nif-viewer` repository with NiTriStrips/NiTriStripsData support, invalid-reference

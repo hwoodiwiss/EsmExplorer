@@ -4,6 +4,11 @@
 
 - Use TUnit and the existing Microsoft.Testing.Platform configuration. Follow nearby
   test naming and assertion patterns; central package management also applies here.
+- Write browser smoke tests in C# using TUnit and the .NET Microsoft.Playwright
+  bindings. Keep real-game browser checks opt-in; see `EsmParser.Web.Tests/README.md`.
+- Write fixture preparation utilities in PowerShell 7+ and test them from C#/TUnit.
+  Use `scripts/Create-BsaFixtureManifest.ps1` for original-file hash manifests; do not
+  introduce a Node test runner for fixture utilities or browser smoke tests.
 - Test externally observable behaviour and meaningful failure cases. Avoid tests that
   merely reproduce the implementation. Brace/formatting-only edits need no new tests.
 - Keep default suites portable: generate small inputs, use isolated temporary output

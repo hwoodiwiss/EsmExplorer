@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="TUnit" />
+    <PackageReference Include="Microsoft.Playwright" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
     <PackageReference Include="NifViewer.Blazor" />
     <ProjectReference Include="../../src/BethesdaArchiveParser.Core/BethesdaArchiveParser.Core.csproj" />
