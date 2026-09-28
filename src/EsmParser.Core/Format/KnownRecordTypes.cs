@@ -22,6 +22,7 @@ public static class KnownRecordTypes
             // File structure
             ["TES4"] = "Plugin Header",
             ["GRUP"] = "Group",
+            ["SCPT"] = "Script",
 
             // Skyrim-era base set (per the Skyrim mod file format spec)
             ["AACT"] = "Action",

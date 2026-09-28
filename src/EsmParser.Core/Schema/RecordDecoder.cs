@@ -193,6 +193,23 @@ public static class RecordDecoder
         ]);
     }
 
+    /// <summary>Script Header</summary>
+    private static DecodedValue ScriptHeader(RecordField field, in DecodeContext context)
+    {
+        if (field.Size != 20)
+        {
+            return Unexpected(field);
+        }
+
+        ReadOnlySpan<byte> span = field.Data.Span;
+        return new StructValue([
+            new DecodedMember("RefCount", new IntegerValue(BinaryPrimitives.ReadUInt32LittleEndian(span[4..]))),
+            new DecodedMember("CompiledSize", new IntegerValue(BinaryPrimitives.ReadUInt32LittleEndian(span[8..]))),
+            new DecodedMember("VariableCount", new IntegerValue(BinaryPrimitives.ReadUInt32LittleEndian(span[12..]))),
+            new DecodedMember("ScriptType", new IntegerValue(BinaryPrimitives.ReadUInt32LittleEndian(span[16..]))),
+        ]);
+    }
+
     private static RawValue Unexpected(RecordField field) => new(string.Create(
         CultureInfo.InvariantCulture,
         $"Unexpected size {field.Size} for this field's schema."));
@@ -217,6 +234,11 @@ public static class RecordDecoder
     private static readonly FrozenDictionary<Signature, FrozenDictionary<Signature, FieldSchema>> PerRecordSchemas =
         new Dictionary<string, Dictionary<string, FieldSchema>>(StringComparer.Ordinal)
         {
+            ["SCPT"] = new(StringComparer.Ordinal)
+            {
+                ["SCHR"] = new("Script Header", ScriptHeader),
+                ["SCTX"] = new("Script Text", ZString),
+            },
             ["GMST"] = new(StringComparer.Ordinal)
             {
                 ["DATA"] = new("Value", GameSettingValue),
