@@ -1,5 +1,3 @@
-// Small display helpers with no better home.
-
-export function scrollToId(elementId) {
+export function scrollToId(elementId: string): void {
   document.getElementById(elementId)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
 }

@@ -5,7 +5,7 @@
 const storageKey = 'esm-theme';
 const media = window.matchMedia('(prefers-color-scheme: dark)');
 
-function resolve(preference) {
+function resolve(preference: string): string {
   return preference === 'dark' || (preference === 'auto' && media.matches) ? 'dark' : 'light';
 }
 
@@ -13,12 +13,12 @@ function apply() {
   document.documentElement.setAttribute('data-bs-theme', resolve(getPreference()));
 }
 
-export function getPreference() {
+export function getPreference(): string {
   const stored = localStorage.getItem(storageKey);
   return stored === 'light' || stored === 'dark' ? stored : 'auto';
 }
 
-export function setPreference(preference) {
+export function setPreference(preference: string) {
   if (preference === 'light' || preference === 'dark') {
     localStorage.setItem(storageKey, preference);
   } else {

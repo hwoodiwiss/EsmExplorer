@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "module": "es6",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "sourceMap": true,
+    "rootDir": "./scripts",
+    "outDir": "wwwroot/js"
+  },
+  "include": ["scripts/**/*"],
+  "exclude": ["node_modules", "wwwroot"]
+}
