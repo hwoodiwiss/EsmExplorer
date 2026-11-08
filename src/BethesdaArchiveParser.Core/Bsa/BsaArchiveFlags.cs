@@ -1,4 +1,4 @@
-namespace BethesdaArchiveParser.Core;
+namespace BethesdaArchiveParser.Core.Bsa;
 
 [Flags]
 public enum BsaArchiveFlags : uint

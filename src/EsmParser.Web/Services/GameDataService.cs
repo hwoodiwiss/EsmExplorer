@@ -57,13 +57,13 @@ public sealed partial class GameDataService(IJSRuntime jsRuntime, ILogger<GameDa
                 {
                     await using var stream = await SeekablePullFromJSDataStream.OpenAsync(module, archiveName)
                         ?? throw new FileNotFoundException("Archive is no longer available.", archiveName);
-                    var archive = await new BsaArchiveReader(stream).ReadBsaArchiveAsync();
+                    var archive = await new ArchiveReader(stream).ReadArchiveAsync();
                     foreach (var entry in archive.Entries)
                     {
                         string? path = NormalizePath(entry.Path);
                         if (path is not null)
                         {
-                            _files[path] = new ArchivedFile(archiveName, entry.File);
+                            _files[path] = new ArchivedFile(archiveName, entry);
                         }
                     }
                     ArchiveCount++;
@@ -118,7 +118,7 @@ public sealed partial class GameDataService(IJSRuntime jsRuntime, ILogger<GameDa
                 return null;
             }
             await using var archiveStream = await SeekablePullFromJSDataStream.OpenAsync(module, entry.ArchiveName);
-            return archiveStream is null ? null : await new BsaArchiveReader(archiveStream).ReadBsaFileAsync(entry.File);
+            return archiveStream is null ? null : await new ArchiveReader(archiveStream).ReadFileAsync(entry.Entry);
         }
         catch (JSDisconnectedException)
         {
@@ -175,7 +175,7 @@ public sealed partial class GameDataService(IJSRuntime jsRuntime, ILogger<GameDa
         _gate.Dispose();
     }
 
-    private sealed record ArchivedFile(string ArchiveName, BsaFileRecord File);
+    private sealed record ArchivedFile(string ArchiveName, ArchiveEntry Entry);
 
     private static partial class Log
     {

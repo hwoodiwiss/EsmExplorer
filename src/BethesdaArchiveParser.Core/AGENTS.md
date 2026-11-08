@@ -14,6 +14,10 @@
 
 ## Current contracts and format pitfalls
 
+- Layout: format-agnostic `Archive*` types at the root and `Reader/ArchiveReader.cs`;
+  per-format code in `Bsa/` (later `Ba2/`), each with its own `Reader/`; shared bounded I/O
+  and payload copying in `IO/`. Namespaces follow folders. `ArchiveReader` only detects
+  and delegates, so keep parsing in the format-specific readers.
 - Readers use caller-owned readable, seekable streams and leave them open. Operations
   sharing a source stream must be serialized; payload reads restore source position.
 - Keep cancellation flowing through async source/destination operations.
@@ -28,7 +32,7 @@
   and unnamed archives are currently rejected explicitly. Do not imply support for
   another format without implementation and verification.
 - Preserve the shipped-archive filename-table compatibility behaviour documented in
-  `Reader/BsaReader.cs` and its regression test. Do not tighten validation solely from
+  `Bsa/Reader/BsaReader.cs` and its regression test. Do not tighten validation solely from
   assumptions about perfectly formed archives.
 - Keep malformed-input failures consistent with the existing exception-based API;
   the plugin parser's result-union convention is a separate library contract.

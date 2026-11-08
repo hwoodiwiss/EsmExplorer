@@ -1,4 +1,4 @@
-namespace BethesdaArchiveParser.Core;
+namespace BethesdaArchiveParser.Core.Bsa;
 
 /// <summary>The BSA format versions implemented by this reader, using their on-disk values.</summary>
 /// <remarks>

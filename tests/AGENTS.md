@@ -25,7 +25,7 @@
   async I/O. Include destination behaviour when testing streaming extraction.
 - For CLI changes, cover parsing, non-interactive detection, interactive selection via
   Spectre's test console, shared output paths, overwrite precedence, and failure handling.
-- Keep generated fixtures write-only and small; `BethesdaArchiveParser.Core.Tests/BsaFixture.cs`
+- Keep generated fixtures write-only and small; `BethesdaArchiveParser.Core.Tests/Bsa/BsaFixture.cs`
   is shared with CLI tests through a linked source file.
 
 ## External fixtures
@@ -38,7 +38,7 @@
   original files or an independent trusted extractor, never this parser.
 - The user-supplied independent BSA fixture is still pending as of this guidance's
   creation. Update that status when it is provided; do not treat local game archives
-  as its replacement. See `README.md` and `ExternalArchiveTests.cs` for the workflow.
+  as its replacement. See `README.md` and `Bsa/ExternalArchiveTests.cs` for the workflow.
 - Follow the existing optional-resource convention for plugin integration tests too.
   Keep proprietary fixtures/extracted assets out of commits and report skipped tests.
 

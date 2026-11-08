@@ -1,5 +1,5 @@
 using System.Security.Cryptography;
-using BethesdaArchiveParser.Core.Reader;
+using BethesdaArchiveParser.Core.Bsa.Reader;
 
 namespace BethesdaArchiveParser.Core.Tests;
 

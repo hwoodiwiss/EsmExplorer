@@ -175,22 +175,35 @@ selection, **130** cancellation. Ctrl+C cancels the active command.
 ### Library API and portability
 
 ```csharp
+using BethesdaArchiveParser.Core.Reader;
+
 using var stream = File.OpenRead("example.bsa");
-var reader = new BsaArchiveReader(stream);
-var archive = await reader.ReadBsaArchiveAsync(cancellationToken);
+var reader = new ArchiveReader(stream);
+var archive = await reader.ReadArchiveAsync(cancellationToken);
 foreach (var entry in archive.Entries)
 {
-    // entry.Path is an archive-relative path; entry.File is its metadata record.
-    await reader.CopyBsaFileToAsync(entry.File, destination, cancellationToken);
+    // entry.Path is an archive-relative path; entry.File is the format-specific record.
+    await reader.CopyFileToAsync(entry, destination, cancellationToken);
 }
 ```
 
-`ReadBsaArchive`, `ReadBsaFile`, and `CopyBsaFileTo` are the synchronous equivalents.
+`ArchiveReader` is the format-agnostic entry point. It detects the format from the
+signature (`ArchiveReader.DetectFormat[Async]`) and delegates to a format-specific reader.
+`Archive.Format` reports the format. `Archive.Details` and `ArchiveEntry.File` are unions
+over the format-specific types (`BsaArchive`, `BsaFileRecord`), so use pattern matching for
+format details. `ArchiveEntry.ExpandedLength` is `null` when the length is stored inside
+the payload, as it is for compressed or embedded-name BSA entries. BA2 (`BTDX`) archives are
+detected but rejected with `NotSupportedException` until BA2 reading lands; see
+`docs/ba2-support-plan.md`. The BSA-specific API is still available as
+`BethesdaArchiveParser.Core.Bsa.Reader.BsaArchiveReader`, with the model types in
+`BethesdaArchiveParser.Core.Bsa`.
+
+`ReadArchive`, `ReadFile`, and `CopyFileTo` are the synchronous equivalents.
 Async methods perform asynchronous source/destination I/O, without blocking on tasks
 or using `Task.Run`, so seekable browser-backed streams can be used from WASM.
 Streams are caller-owned and remain open; operations on the same source stream must
-be serialized. Payload reads restore the source position. `ReadBsaFile[Async]` returns
-a byte array; prefer `CopyBsaFileTo[Async]` for large entries. Payload copying uses a
+be serialized. Payload reads restore the source position. `ReadFile[Async]` returns
+a byte array; prefer `CopyFileTo[Async]` for large entries. Payload copying uses a
 pooled buffer, bounds compressed input to the entry, and verifies the expanded length.
 Archive metadata is held in memory with buffered reads and a case-insensitive path index.
 Treat the legacy mutable metadata lists as read-only after construction.

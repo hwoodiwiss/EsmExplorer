@@ -1,4 +1,4 @@
-namespace BethesdaArchiveParser.Core.Reader;
+namespace BethesdaArchiveParser.Core.Bsa.Reader;
 
 internal sealed class BsaContentReader(BinaryBsaHeader header, BsaReader reader)
 {

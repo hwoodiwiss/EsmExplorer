@@ -1,4 +1,4 @@
-namespace BethesdaArchiveParser.Core.Reader;
+namespace BethesdaArchiveParser.Core.IO;
 
 // Does not own the archive stream. Decoders must never read into the following entry.
 internal sealed class BoundedReadStream(Stream source, long length) : Stream

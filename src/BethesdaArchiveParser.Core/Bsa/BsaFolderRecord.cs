@@ -1,4 +1,4 @@
-namespace BethesdaArchiveParser.Core;
+namespace BethesdaArchiveParser.Core.Bsa;
 
 public sealed record BsaFolderRecord(BinaryBsaHeader Header, ulong FolderHash, uint FileCount, ulong Offset, string? Name, List<long> FileOffsets)
 {

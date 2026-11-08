@@ -132,7 +132,7 @@ public sealed class CliTests
         byte[] bytes = BsaFixture.Create(compressed: true);
         using (var stream = new MemoryStream(bytes))
         {
-            var file = new BethesdaArchiveParser.Core.Reader.BsaArchiveReader(stream).ReadBsaArchive().Entries[0].File;
+            var file = new BethesdaArchiveParser.Core.Bsa.Reader.BsaArchiveReader(stream).ReadBsaArchive().Entries[0].File;
             System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan((int)file.Offset), 1);
         }
         string source = workspace.AddArchive("bad.bsa", bytes);

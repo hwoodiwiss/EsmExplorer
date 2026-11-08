@@ -1,7 +1,7 @@
 using System.Buffers.Binary;
 using System.Text;
 
-namespace BethesdaArchiveParser.Core.Reader;
+namespace BethesdaArchiveParser.Core.Bsa.Reader;
 
 // Read-ahead avoids an allocation and a stream/JS interop call per scalar or character.
 internal sealed class BsaReader(Stream stream, bool isAsync, CancellationToken cancellationToken)
@@ -137,7 +137,9 @@ internal sealed class BsaReader(Stream stream, bool isAsync, CancellationToken c
         }
         if (!bytes.AsSpan(0, 4).SequenceEqual("BSA\0"u8))
         {
-            throw new InvalidDataException("Invalid BSA signature.");
+            throw new InvalidDataException(bytes.AsSpan(0, 4).SequenceEqual("BTDX"u8)
+                ? "Invalid BSA signature: this is a BA2 archive."
+                : "Invalid BSA signature.");
         }
         var header = new BinaryBsaHeader
         {

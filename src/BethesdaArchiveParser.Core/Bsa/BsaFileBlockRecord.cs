@@ -1,4 +1,4 @@
-namespace BethesdaArchiveParser.Core;
+namespace BethesdaArchiveParser.Core.Bsa;
 
 public sealed record BsaFileBlockRecord(string? FolderName, ICollection<BsaFileRecord> Files)
 {

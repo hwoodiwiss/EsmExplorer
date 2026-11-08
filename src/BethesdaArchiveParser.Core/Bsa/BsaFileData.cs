@@ -1,7 +1,7 @@
-using BethesdaArchiveParser.Core.Extensions;
-using BethesdaArchiveParser.Core.Reader;
+using BethesdaArchiveParser.Core.IO;
+using BethesdaArchiveParser.Core.Bsa.Reader;
 
-namespace BethesdaArchiveParser.Core;
+namespace BethesdaArchiveParser.Core.Bsa;
 
 // Sizes here describe the payload only: embedded names and the expanded-size prefix are excluded.
 public sealed record BsaCompressedFile(BinaryBsaHeader Header, Stream FileStream, string? Name, uint CompressedSize, uint UncompressedSize, uint DataOffset)

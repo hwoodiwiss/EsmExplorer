@@ -8,6 +8,6 @@
     <PackageReference Include="TUnit" />
     <PackageReference Include="Spectre.Console.Testing" />
     <ProjectReference Include="../../src/BsaParser.Cli/BsaParser.Cli.csproj" />
-    <Compile Include="../BethesdaArchiveParser.Core.Tests/BsaFixture.cs" Link="BsaFixture.cs" />
+    <Compile Include="../BethesdaArchiveParser.Core.Tests/Bsa/BsaFixture.cs" Link="BsaFixture.cs" />
   </ItemGroup>
 </Project>

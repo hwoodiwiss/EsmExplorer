@@ -59,7 +59,7 @@ public sealed class GameDataTests
         await Assert.That(results[0]).IsEquivalentTo("first payload"u8.ToArray());
         await Assert.That(results[1]).IsEquivalentTo("second payload must not leak"u8.ToArray());
         using var metadata = new MemoryStream(archiveBytes);
-        var file = new BethesdaArchiveParser.Core.Reader.BsaArchiveReader(metadata).ReadBsaArchive().Entries[0].File;
+        var file = new BethesdaArchiveParser.Core.Bsa.Reader.BsaArchiveReader(metadata).ReadBsaArchive().Entries[0].File;
         System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(archiveBytes.AsSpan((int)file.Offset), 1);
         await Assert.That(async () => await service.ResolveAsync("meshes/first.bin")).Throws<InvalidDataException>();
         await Assert.That(js.OpenCount).IsEqualTo(0);

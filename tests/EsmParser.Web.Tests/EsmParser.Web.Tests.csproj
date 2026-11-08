@@ -13,7 +13,7 @@
     <!-- Test browser-independent orchestration with fake JS interop on the host runtime. -->
     <Compile Include="../../src/EsmParser.Web/Services/GameDataService.cs" Link="GameDataService.cs" />
     <Compile Include="../../src/EsmParser.Web/Interop/SeekablePullFromJSDataStream.cs" Link="SeekablePullFromJSDataStream.cs" />
-    <Compile Include="../BethesdaArchiveParser.Core.Tests/BsaFixture.cs" Link="BsaFixture.cs" />
+    <Compile Include="../BethesdaArchiveParser.Core.Tests/Bsa/BsaFixture.cs" Link="BsaFixture.cs" />
     <Using Include="Microsoft.Extensions.Logging" />
   </ItemGroup>
 </Project>

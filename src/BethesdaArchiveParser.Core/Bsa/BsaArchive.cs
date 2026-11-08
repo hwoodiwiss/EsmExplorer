@@ -1,4 +1,4 @@
-namespace BethesdaArchiveParser.Core;
+namespace BethesdaArchiveParser.Core.Bsa;
 
 public sealed record BsaEntry(string Path, BsaFileRecord File);
 

@@ -1,4 +1,4 @@
-namespace BethesdaArchiveParser.Core;
+namespace BethesdaArchiveParser.Core.IO;
 
 internal sealed class ScopedOffset : IDisposable
 {

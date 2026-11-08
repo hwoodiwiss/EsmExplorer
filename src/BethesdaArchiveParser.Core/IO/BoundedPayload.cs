@@ -1,13 +1,12 @@
 using System.Buffers;
-using System.IO.Compression;
-using K4os.Compression.LZ4.Streams;
 
-namespace BethesdaArchiveParser.Core.Reader;
+namespace BethesdaArchiveParser.Core.IO;
 
-internal static class BsaPayload
+// Shared by every archive format: copies one stored payload, optionally through a decoder, with exact-size checks.
+internal static class BoundedPayload
 {
-    public static async ValueTask<long> Copy(Stream source, Stream destination, BsaVersion version, long offset,
-        uint storedSize, uint expandedSize, bool compressed, bool isAsync, CancellationToken cancellationToken)
+    public static async ValueTask<long> Copy(Stream source, Stream destination, long offset, long storedSize, long expandedSize,
+        Func<Stream, Stream>? createDecoder, bool isAsync, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(destination);
         if (!destination.CanWrite)
@@ -18,20 +17,13 @@ internal static class BsaPayload
         {
             throw new ArgumentException("Destination cannot be the archive stream.", nameof(destination));
         }
-        if (offset < 0 || offset > source.Length || storedSize > source.Length - offset)
+        if (offset < 0 || storedSize < 0 || offset > source.Length || storedSize > source.Length - offset)
         {
             throw new InvalidDataException("File payload is outside the archive.");
         }
         using var scope = new ScopedOffset(source, offset);
         using var bounded = new BoundedReadStream(source, storedSize);
-        using Stream? decoder = compressed
-            ? version switch
-            {
-                BsaVersion.Oblivion or BsaVersion.Fallout3AndSkyrim => new ZLibStream(bounded, CompressionMode.Decompress, true),
-                BsaVersion.SkyrimSpecialEdition => LZ4Stream.Decode(bounded, leaveOpen: true),
-                _ => throw new InvalidDataException($"Unsupported BSA version {(uint)version}."),
-            }
-            : null;
+        using Stream? decoder = createDecoder?.Invoke(bounded);
         Stream input = decoder ?? bounded;
         byte[] buffer = ArrayPool<byte>.Shared.Rent(81920);
         try
