@@ -43,7 +43,7 @@ internal static class ArchiveExtractor
             string parent = Path.GetDirectoryName(target)!;
             CheckExistingPath(target);
             Directory.CreateDirectory(parent);
-            string temporary = Path.Combine(parent, $".bsa-{Guid.NewGuid():N}.tmp");
+            string temporary = Path.Combine(parent, $".archive-{Guid.NewGuid():N}.tmp");
             try
             {
                 await using (var destination = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None,

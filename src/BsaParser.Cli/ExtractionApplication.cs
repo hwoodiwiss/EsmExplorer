@@ -16,11 +16,11 @@ internal sealed class ExtractionApplication(IAnsiConsole console, bool terminalI
         {
             token.ThrowIfCancellationRequested();
             var candidates = Directory.EnumerateFiles(input)
-                .Where(static path => Path.GetExtension(path).Equals(".bsa", StringComparison.OrdinalIgnoreCase))
+                .Where(static path => IsArchive(path))
                 .Order(StringComparer.OrdinalIgnoreCase).ToArray();
             if (candidates.Length == 0)
             {
-                throw new IOException($"No BSA files found in {input}.");
+                throw new IOException($"No BSA or BA2 files found in {input}.");
             }
             bool interactive = CanInteract(nonInteractive);
             string[] selected;
@@ -31,12 +31,12 @@ internal sealed class ExtractionApplication(IAnsiConsole console, bool terminalI
             else if (names.Length > 0)
             {
                 selected = [.. names.Select(name => candidates.FirstOrDefault(path => string.Equals(Path.GetFileName(path), name, StringComparison.OrdinalIgnoreCase))
-                    ?? throw new IOException($"BSA not found in input directory: {name}")).Distinct(StringComparer.OrdinalIgnoreCase)];
+                    ?? throw new IOException($"Archive not found in input directory: {name}")).Distinct(StringComparer.OrdinalIgnoreCase)];
             }
             else if (interactive)
             {
                 selected = [.. await console.PromptAsync(new MultiSelectionPrompt<string>()
-                    .Title("Select [green]BSA archives[/] to unpack")
+                    .Title("Select [green]archives[/] to unpack")
                     .Required().PageSize(15).UseConverter(static path => Markup.Escape(Path.GetFileName(path)))
                     .AddChoices(candidates), token).ConfigureAwait(false)];
             }
@@ -83,6 +83,9 @@ internal sealed class ExtractionApplication(IAnsiConsole console, bool terminalI
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { console.WriteLine("Cancelled."); return 130; }
     }
+
+    internal static bool IsArchive(string path) => Path.GetExtension(path) is { } extension
+        && (extension.Equals(".bsa", StringComparison.OrdinalIgnoreCase) || extension.Equals(".ba2", StringComparison.OrdinalIgnoreCase));
 
     private static bool IsExpected(Exception ex) => ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException or ArgumentException;
     private void WriteError(string message) => console.MarkupLine($"[red]Error:[/] {Markup.Escape(message)}");

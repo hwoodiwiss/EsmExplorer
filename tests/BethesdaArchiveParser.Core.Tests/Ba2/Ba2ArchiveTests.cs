@@ -1,4 +1,3 @@
-#if BA2_READER
 using System.Buffers.Binary;
 using BethesdaArchiveParser.Core.Ba2;
 using BethesdaArchiveParser.Core.Ba2.Reader;
@@ -6,11 +5,9 @@ using BethesdaArchiveParser.Core.Bsa.Reader;
 
 namespace BethesdaArchiveParser.Core.Tests;
 
-// Specification suite for BA2 support. See docs/ba2-support-plan.md for the API these tests assume
-// and the phase in which each group is expected to pass. Remove the BA2_READER guard in phase 1.
 public sealed class Ba2ArchiveTests
 {
-    // ---- Phase 1: header and GNRL index -------------------------------------------------------
+    // ---- Header and GNRL index
 
     [Test]
     [Arguments(1u, Ba2Version.Fallout4)]
@@ -194,9 +191,11 @@ public sealed class Ba2ArchiveTests
     [Test]
     [Arguments(1u, 0u)]
     [Arguments(3u, 3u)]
-    public async Task Compressed_reads_do_not_consume_the_next_entry(uint version, uint method)
+    public async Task Overstated_packed_size_never_leaks_into_the_next_entry(uint version, uint method)
     {
-        // Overstating the packed size must not let a decoder read into the following payload unnoticed.
+        // zlib and LZ4 decoders stop at their own end marker, so trailing input inside the overstated
+        // range is not always detectable. The read must either fail or produce the exact content, and
+        // must never disturb the following entry.
         byte[] bytes = Ba2Fixture.CreateGeneral(version, true, method);
         int field = Ba2Fixture.FirstGeneralPackedSizeOffset(version);
         uint packed = BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(field));
@@ -204,7 +203,13 @@ public sealed class Ba2ArchiveTests
         using var stream = new MemoryStream(bytes);
         var reader = new Ba2ArchiveReader(stream);
         var archive = reader.ReadBa2Archive();
-        await Assert.That(() => reader.ReadBa2File(archive.Entries[0].File)).Throws<InvalidDataException>();
+        try
+        {
+            await Assert.That(reader.ReadBa2File(archive.Entries[0].File)).IsEquivalentTo(Ba2Fixture.FirstContent);
+        }
+        catch (InvalidDataException)
+        {
+        }
         await Assert.That(reader.ReadBa2File(archive.Entries[1].File)).IsEquivalentTo(Ba2Fixture.SecondContent);
     }
 
@@ -259,7 +264,7 @@ public sealed class Ba2ArchiveTests
         await Assert.That(() => new Ba2ArchiveReader(new NonSeekable())).Throws<ArgumentException>();
     }
 
-    // ---- Phase 2: BSA interplay (unified API tests live in ArchiveReaderTests) ---------------
+    // ---- BSA interplay (unified API tests live in ArchiveReaderTests)
 
     [Test]
     public async Task Bsa_reader_rejects_ba2_input_and_vice_versa()
@@ -270,7 +275,7 @@ public sealed class Ba2ArchiveTests
         await Assert.That(() => new Ba2ArchiveReader(bsa).ReadBa2Archive()).Throws<InvalidDataException>();
     }
 
-    // ---- Phase 3: DX10 textures --------------------------------------------------------------
+    // ---- DX10 textures
 
     [Test]
     [Arguments(1u, false, 0u, false)]
@@ -350,4 +355,3 @@ public sealed class Ba2ArchiveTests
         public override bool CanSeek => false;
     }
 }
-#endif

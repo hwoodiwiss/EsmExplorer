@@ -9,5 +9,6 @@
     <PackageReference Include="Spectre.Console.Testing" />
     <ProjectReference Include="../../src/BsaParser.Cli/BsaParser.Cli.csproj" />
     <Compile Include="../BethesdaArchiveParser.Core.Tests/Bsa/BsaFixture.cs" Link="BsaFixture.cs" />
+    <Compile Include="../BethesdaArchiveParser.Core.Tests/Ba2/Ba2Fixture.cs" Link="Ba2Fixture.cs" />
   </ItemGroup>
 </Project>

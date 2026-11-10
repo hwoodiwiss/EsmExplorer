@@ -14,9 +14,9 @@ use stays flat regardless of file size.
 |---|---|
 | `src/EsmParser.Core` | All parsing, navigation, and interpretation logic. No UI or platform dependencies. |
 | `src/EsmParser.Web` | Blazor WebAssembly explorer. Display logic only — file access via JS blob slicing, tree navigation, record/field details, hex views, dark mode. |
-| `src/BethesdaArchiveParser.Core` | BSA 103/104/105 metadata and bounded-memory payload extraction, with synchronous and asynchronous stream APIs. |
+| `src/BethesdaArchiveParser.Core` | BSA 103/104/105 and BA2 (Fallout 4/Starfield) metadata and bounded-memory payload extraction behind one `ArchiveReader`, with synchronous and asynchronous stream APIs. |
 | `src/BsaParser.Cli` | NativeAOT-compatible System.CommandLine CLI with Spectre.Console selection and progress. |
-| `tests/BethesdaArchiveParser.Core.Tests` | Generated BSA fixtures, sync/async I/O checks, and opt-in external fixture verification. |
+| `tests/BethesdaArchiveParser.Core.Tests` | Generated BSA/BA2 fixtures, sync/async I/O checks, and opt-in external fixture verification. |
 | `tests/BsaParser.Cli.Tests` | Command parsing, interactive selection, extraction, overwrite, and error handling tests. |
 | `tests/EsmParser.Web.Tests` | Browser file-stream and BSA resolver tests with fake JS interop, plus JavaScript directory-handle tests. |
 | `tests/EsmParser.Core.Tests` | TUnit test suite: unit tests over synthetic plugins plus integration tests against the real `Starfield.esm`. |
@@ -134,11 +134,12 @@ another loaded file, expanding the tree to it. A "Go to form id" box does the sa
 arbitrary ids. The first jump into a plugin builds its form-id index (a one-off full
 read, with progress); later jumps are instant.
 
-## BSA unpacker
+## Archive unpacker (BSA/BA2)
 
 ```powershell
 # One archive: writes directly into output, preserving archive paths
 dotnet run --project src/BsaParser.Cli -- unpack "D:\Game\Data\Meshes.bsa" -o "D:\Extracted"
+dotnet run --project src/BsaParser.Cli -- unpack "D:\Fallout 4\Data\Fallout4 - Textures1.ba2" -o "D:\Extracted"
 
 # Interactive multi-selection (Space to select, Enter to unpack)
 dotnet run --project src/BsaParser.Cli -- unpack-directory "D:\Game\Data" -o "D:\Extracted"
@@ -151,7 +152,7 @@ dotnet run --project src/BsaParser.Cli -- unpack-directory "D:\Game\Data" -o "D:
 dotnet publish src/BsaParser.Cli -c Release -r win-x64
 ```
 
-Batch mode searches the input directory's top level, case-insensitively matching `.bsa`.
+Batch mode searches the input directory's top level, case-insensitively matching `.bsa` and `.ba2`. BA2 texture entries are written as complete `.dds` files.
 All archives write directly into the shared output directory, preserving their internal
 paths (for example, `Extracted/meshes/…` and `Extracted/textures/…`).
 `--all` and interactive selection process archives in case-insensitive filename order;
@@ -162,7 +163,7 @@ are disabled by `--non-interactive`, redirected stdin/stdout, `TERM=dumb`, or a 
 `CI` value other than `false`/`0`. Without an interactive terminal, batch mode requires
 explicit selection. The two commands also support `--help`.
 
-Existing files, including paths already extracted from another BSA, cause an error
+Existing files, including paths already extracted from another archive, cause an error
 unless `--overwrite` is supplied. Each entry is first
 streamed to a temporary file in its destination directory, then moved into place;
 failed/cancelled entries leave existing files intact. Completed entries remain if a
@@ -192,11 +193,11 @@ signature (`ArchiveReader.DetectFormat[Async]`) and delegates to a format-specif
 `Archive.Format` reports the format. `Archive.Details` and `ArchiveEntry.File` are unions
 over the format-specific types (`BsaArchive`, `BsaFileRecord`), so use pattern matching for
 format details. `ArchiveEntry.ExpandedLength` is `null` when the length is stored inside
-the payload, as it is for compressed or embedded-name BSA entries. BA2 (`BTDX`) archives are
-detected but rejected with `NotSupportedException` until BA2 reading lands; see
-`docs/ba2-support-plan.md`. The BSA-specific API is still available as
-`BethesdaArchiveParser.Core.Bsa.Reader.BsaArchiveReader`, with the model types in
-`BethesdaArchiveParser.Core.Bsa`.
+the payload, as it is for compressed or embedded-name BSA entries. BA2 entries always
+report it. The format-specific APIs are still available:
+`BethesdaArchiveParser.Core.Bsa.Reader.BsaArchiveReader` with the model types in
+`BethesdaArchiveParser.Core.Bsa`, and `BethesdaArchiveParser.Core.Ba2.Reader.Ba2ArchiveReader`
+with the model types in `BethesdaArchiveParser.Core.Ba2`.
 
 `ReadArchive`, `ReadFile`, and `CopyFileTo` are the synchronous equivalents.
 Async methods perform asynchronous source/destination I/O, without blocking on tasks
@@ -216,6 +217,18 @@ use `ulong` (`BsaFolderRecord.Offset`/`FileBlockOffset`) rather than truncating 
 `Fallout3AndSkyrim` (104, including New Vegas), and `SkyrimSpecialEdition` (105).
 These mappings follow the [UESP format documentation](https://en.uesp.net/wiki/Skyrim_Mod:Archive_File_Format).
 Unknown versions are rejected as unsupported rather than interpreted using an assumed layout.
+
+BA2 (`BTDX`) support covers Fallout 4 (v1), Fallout 4 next-gen (v7/v8), and Starfield
+(v2/v3), in both `GNRL` (general) and `DX10` (texture) archives. Compression is zlib,
+or a raw LZ4 block per chunk when a v3 archive selects method 3. Texture entries are
+extracted as complete DDS files: a synthesised `DDS_HEADER` + `DDS_HEADER_DXT10` followed
+by the mip chunks in order. `Ba2FileRecord.ExpandedLength` includes that 148-byte header.
+zlib and stored chunks stream with bounded memory. An LZ4 block must be decoded whole,
+so memory is bounded by the largest chunk. `GNMF` (console) and unnamed BA2 archives are
+rejected explicitly. Record hashes are exposed (`Ba2Hash` reproduces them for ASCII paths)
+but not validated, because lookup uses the name table. Use
+`BethesdaArchiveParser.Core.Ba2.Reader.Ba2ArchiveReader` for BA2-specific details such as
+chunks and texture metadata.
 Malformed archives throw `InvalidDataException`/`EndOfStreamException`.
 
 ### BSA regression fixtures
@@ -256,24 +269,32 @@ content correctness. No game archives are included in the repository.
 
 ## Model viewer
 
+The explorer starts by asking for your game `Data` folder (File System Access API —
+Chromium-based browsers): click **Choose data root…** on the home page. The top-level
+`.esm`/`.esp`/`.esl` plugins in that folder are listed; tick the ones to load (include
+masters to follow references) and click **Load selected**. Plugins are read through the
+same directory handle in on-demand slices. Browsers without the API show a warning and
+fall back to an individual plugin file picker (the model viewer then has no data root).
+
 Records whose `MODL` field (or any text field ending in `.nif`) names a model get a
 **View** link that opens the built-in NIF model viewer (`/model`, also in the nav).
-The viewer needs read access to your game `Data` folder (File System Access API —
-Chromium-based browsers): click **Choose data root…** and pick it once per session.
-For BSA-based games such as Fallout: New Vegas, select the installed `Data` directory
-directly; no extraction is required. The viewer indexes top-level BSA metadata, then
-reads requested NIFs and dependencies using seekable, asynchronous file slices capped
+The viewer uses the data root chosen on the home page; no second picker is needed.
+The root is held for the session only and must be chosen again after a page reload.
+For BSA- and BA2-based games, select the installed `Data` directory
+directly; no extraction is required. Top-level `*.bsa` and `*.ba2` metadata is indexed
+when the root is chosen, then requested NIFs and dependencies are read using seekable,
+asynchronous file slices capped
 at 64 KiB per interop call. Whole archives are never copied into browser memory.
 Individual assets are materialized as byte arrays for the viewer's resolver API.
 Loose files take precedence; duplicate archived paths use the last archive in
 case-insensitive filename order (this does not reproduce plugin load order).
-Changing the root rebuilds the index; cancelling the picker preserves the current root.
+Changing the root rebuilds the plugin list and index; cancelling the picker preserves
+the current root. Already-loaded plugins stay loaded.
 Unusable archives are listed in the UI while other archives remain available.
 
 Use **Browse archived models** to filter NIF paths, or enter a data-relative path and
 click **Load path**. The browser list shows up to 100 matches at a time. Record **View**
-links continue to work with the same resolver. Starfield BA2 files still require the
-extraction workflow below.
+links continue to work with the same resolver.
 
 Model paths are resolved case-insensitively, trying `meshes/<path>` then `<path>`,
 and external dependencies (`geometries/*.mesh`, `materials/*.mat`, `textures/*.dds`)

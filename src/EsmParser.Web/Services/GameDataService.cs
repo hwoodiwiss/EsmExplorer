@@ -6,19 +6,25 @@ using NifViewer.Blazor;
 
 namespace EsmParser.Web.Services;
 
-/// <summary>Resolves loose and BSA-backed assets from a user-granted game Data directory.</summary>
+/// <summary>
+/// Owns the user-granted game Data directory: lists its plugins, opens them for the explorer,
+/// and resolves loose and BSA/BA2-backed assets for the model viewer.
+/// </summary>
 public sealed partial class GameDataService(IJSRuntime jsRuntime, ILogger<GameDataService> logger) : INifDependencyResolver, IAsyncDisposable
 {
     private Task<IJSObjectReference>? _module;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Dictionary<string, ArchivedFile> _files = [with(StringComparer.OrdinalIgnoreCase)];
     private readonly List<string> _archiveErrors = [];
+    private readonly List<string> _pluginNames = [];
 
     public string? RootName { get; private set; }
     public bool HasRoot => RootName is not null;
     public bool? IsSupported { get; private set; }
     public int ArchiveCount { get; private set; }
     public IReadOnlyList<string> ArchiveErrors => _archiveErrors;
+    /// <summary>Top-level plugin file names in the data root, in case-insensitive name order.</summary>
+    public IReadOnlyList<string> PluginNames => _pluginNames;
     public IEnumerable<string> ArchivedModelPaths => _files.Keys.Where(static path => path.EndsWith(".nif", StringComparison.OrdinalIgnoreCase));
 
     public async Task<bool> InitializeAsync()
@@ -49,9 +55,11 @@ public sealed partial class GameDataService(IJSRuntime jsRuntime, ILogger<GameDa
             RootName = name;
             _files.Clear();
             _archiveErrors.Clear();
+            _pluginNames.Clear();
             ArchiveCount = 0;
             var names = await module.InvokeAsync<string[]>("listFiles");
-            foreach (string archiveName in names.Where(static n => n.EndsWith(".bsa", StringComparison.OrdinalIgnoreCase)).Order(StringComparer.OrdinalIgnoreCase))
+            _pluginNames.AddRange(names.Where(IsPluginFile).Order(StringComparer.OrdinalIgnoreCase));
+            foreach (string archiveName in names.Where(IsArchiveFile).Order(StringComparer.OrdinalIgnoreCase))
             {
                 try
                 {
@@ -130,6 +138,26 @@ public sealed partial class GameDataService(IJSRuntime jsRuntime, ILogger<GameDa
         }
     }
 
+    /// <summary>Opens a top-level plugin from the data root as a sliced, browser-backed source.</summary>
+    public async Task<DataRootDataSource?> OpenPluginAsync(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        if (!HasRoot || !IsPluginFile(name) || name.IndexOfAny(['/', '\\']) >= 0)
+        {
+            return null;
+        }
+        return await DataRootDataSource.OpenAsync(await GetModuleAsync(), name);
+    }
+
+    internal static bool IsPluginFile(string name) =>
+        name.EndsWith(".esm", StringComparison.OrdinalIgnoreCase)
+        || name.EndsWith(".esp", StringComparison.OrdinalIgnoreCase)
+        || name.EndsWith(".esl", StringComparison.OrdinalIgnoreCase);
+
+    internal static bool IsArchiveFile(string name) =>
+        name.EndsWith(".bsa", StringComparison.OrdinalIgnoreCase)
+        || name.EndsWith(".ba2", StringComparison.OrdinalIgnoreCase);
+
     internal static string? NormalizePath(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -179,7 +207,7 @@ public sealed partial class GameDataService(IJSRuntime jsRuntime, ILogger<GameDa
 
     private static partial class Log
     {
-        [LoggerMessage(1, LogLevel.Warning, "Could not index BSA archive {ArchiveName}.")]
+        [LoggerMessage(1, LogLevel.Warning, "Could not index archive {ArchiveName}.")]
         public static partial void ArchiveFailure(ILogger logger, Exception exception, string archiveName);
     }
 }

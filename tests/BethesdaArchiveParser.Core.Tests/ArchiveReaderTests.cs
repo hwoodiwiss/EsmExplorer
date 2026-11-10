@@ -1,14 +1,12 @@
 using BethesdaArchiveParser.Core.Bsa;
 using BethesdaArchiveParser.Core.Bsa.Reader;
 using BethesdaArchiveParser.Core.Reader;
-#if BA2_READER
 using BethesdaArchiveParser.Core.Ba2;
 using BethesdaArchiveParser.Core.Ba2.Reader;
-#endif
 
 namespace BethesdaArchiveParser.Core.Tests;
 
-// Format-agnostic archive API. BA2 cases are enabled with the BA2 reader (see docs/ba2-support-plan.md).
+// Format-agnostic archive API over BSA and BA2.
 public sealed class ArchiveReaderTests
 {
     public static IEnumerable<Func<(ArchiveFormat Format, byte[] Bytes)>> GeneralArchives()
@@ -16,10 +14,8 @@ public sealed class ArchiveReaderTests
         yield return () => (ArchiveFormat.Bsa, BsaFixture.Create(103, compressed: true));
         yield return () => (ArchiveFormat.Bsa, BsaFixture.Create(104, compressed: true));
         yield return () => (ArchiveFormat.Bsa, BsaFixture.Create(105, compressed: true, embedded: true));
-#if BA2_READER
         yield return () => (ArchiveFormat.Ba2, Ba2Fixture.CreateGeneral(1, compressed: true));
         yield return () => (ArchiveFormat.Ba2, Ba2Fixture.CreateGeneral(3, compressed: true, compressionMethod: 3));
-#endif
     }
 
     [Test]
@@ -73,12 +69,10 @@ public sealed class ArchiveReaderTests
         var bsa = new ArchiveReader(bsaStream).ReadArchive();
         await Assert.That(bsa.Entries[0].File is BsaFileRecord).IsTrue();
         await Assert.That(bsa.Details is BsaArchive { Header.Version: BsaVersion.Fallout3AndSkyrim }).IsTrue();
-#if BA2_READER
         using var ba2Stream = new MemoryStream(Ba2Fixture.CreateGeneral());
         var ba2 = new ArchiveReader(ba2Stream).ReadArchive();
         await Assert.That(ba2.Entries[0].File is Ba2FileRecord).IsTrue();
         await Assert.That(ba2.Details is Ba2Archive { Header.Version: Ba2Version.Fallout4 }).IsTrue();
-#endif
     }
 
     [Test]
@@ -93,7 +87,6 @@ public sealed class ArchiveReaderTests
         var record = specific.ReadBsaArchive().GetFileByPath("meshes\\second.bin")!;
         await Assert.That(entry.File is BsaFileRecord unifiedRecord && unifiedRecord == record).IsTrue();
         await Assert.That(unified.ReadFile(entry)).IsEquivalentTo(specific.ReadBsaFile(record));
-#if BA2_READER
         byte[] texture = Ba2Fixture.CreateTexture(1, compressed: true);
         using var unifiedBa2 = new MemoryStream(texture);
         using var specificBa2 = new MemoryStream(texture);
@@ -103,10 +96,8 @@ public sealed class ArchiveReaderTests
         var ba2Record = ba2Specific.ReadBa2Archive().GetFileByPath(Ba2Fixture.TexturePath)!;
         await Assert.That(ba2Unified.ReadFile(ba2Entry)).IsEquivalentTo(ba2Specific.ReadBa2File(ba2Record));
         await Assert.That(ba2Entry.ExpandedLength).IsEqualTo(ba2Record.ExpandedLength);
-#endif
     }
 
-#if BA2_READER
     [Test]
     public async Task Rejects_entries_from_a_different_format()
     {
@@ -117,16 +108,6 @@ public sealed class ArchiveReaderTests
         _ = bsaReader.ReadArchive();
         await Assert.That(() => bsaReader.ReadFile(ba2Entry)).Throws<ArgumentException>();
     }
-#else
-    [Test]
-    public async Task Rejects_ba2_archives_explicitly_until_supported()
-    {
-        using var stream = new MemoryStream(Ba2Fixture.CreateGeneral());
-        var reader = new ArchiveReader(stream);
-        await Assert.That(() => reader.ReadArchive()).Throws<NotSupportedException>();
-        await Assert.That(async () => await reader.ReadArchiveAsync()).Throws<NotSupportedException>();
-    }
-#endif
 
     [Test]
     public async Task Detects_formats_from_magic_without_moving_the_stream()

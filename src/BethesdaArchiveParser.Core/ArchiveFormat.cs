@@ -10,6 +10,6 @@ public enum ArchiveFormat
     /// <summary>Bethesda BSA (<c>BSA\0</c>); see <see cref="BsaVersion"/> for supported versions.</summary>
     Bsa,
 
-    /// <summary>Bethesda BA2 (<c>BTDX</c>). Detected, but reading is not yet supported.</summary>
+    /// <summary>Bethesda BA2 (<c>BTDX</c>); see <see cref="Ba2.Ba2Version"/> for supported versions.</summary>
     Ba2,
 }

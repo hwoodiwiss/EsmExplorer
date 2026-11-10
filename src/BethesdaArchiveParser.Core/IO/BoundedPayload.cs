@@ -5,8 +5,7 @@ namespace BethesdaArchiveParser.Core.IO;
 // Shared by every archive format: copies one stored payload, optionally through a decoder, with exact-size checks.
 internal static class BoundedPayload
 {
-    public static async ValueTask<long> Copy(Stream source, Stream destination, long offset, long storedSize, long expandedSize,
-        Func<Stream, Stream>? createDecoder, bool isAsync, CancellationToken cancellationToken)
+    public static void ValidateDestination(Stream source, Stream destination)
     {
         ArgumentNullException.ThrowIfNull(destination);
         if (!destination.CanWrite)
@@ -17,6 +16,24 @@ internal static class BoundedPayload
         {
             throw new ArgumentException("Destination cannot be the archive stream.", nameof(destination));
         }
+    }
+
+    public static async ValueTask Write(Stream destination, ReadOnlyMemory<byte> bytes, bool isAsync, CancellationToken cancellationToken)
+    {
+        if (isAsync)
+        {
+            await destination.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            destination.Write(bytes.Span);
+        }
+    }
+
+    public static async ValueTask<long> Copy(Stream source, Stream destination, long offset, long storedSize, long expandedSize,
+        Func<Stream, Stream>? createDecoder, bool isAsync, CancellationToken cancellationToken)
+    {
+        ValidateDestination(source, destination);
         if (offset < 0 || storedSize < 0 || offset > source.Length || storedSize > source.Length - offset)
         {
             throw new InvalidDataException("File payload is outside the archive.");

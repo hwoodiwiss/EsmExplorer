@@ -10,10 +10,13 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
     <PackageReference Include="NifViewer.Blazor" />
     <ProjectReference Include="../../src/BethesdaArchiveParser.Core/BethesdaArchiveParser.Core.csproj" />
+    <ProjectReference Include="../../src/EsmParser.Core/EsmParser.Core.csproj" />
     <!-- Test browser-independent orchestration with fake JS interop on the host runtime. -->
     <Compile Include="../../src/EsmParser.Web/Services/GameDataService.cs" Link="GameDataService.cs" />
+    <Compile Include="../../src/EsmParser.Web/Services/DataRootDataSource.cs" Link="DataRootDataSource.cs" />
     <Compile Include="../../src/EsmParser.Web/Interop/SeekablePullFromJSDataStream.cs" Link="SeekablePullFromJSDataStream.cs" />
     <Compile Include="../BethesdaArchiveParser.Core.Tests/Bsa/BsaFixture.cs" Link="BsaFixture.cs" />
+    <Compile Include="../BethesdaArchiveParser.Core.Tests/Ba2/Ba2Fixture.cs" Link="Ba2Fixture.cs" />
     <Using Include="Microsoft.Extensions.Logging" />
   </ItemGroup>
 </Project>

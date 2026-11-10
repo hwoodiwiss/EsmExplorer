@@ -186,6 +186,80 @@ public sealed class CliTests
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(workspace.Output, "meshes", "first.bin"))).IsEqualTo("one");
     }
 
+    [Test]
+    [Arguments(1u, false, 0u)]
+    [Arguments(8u, true, 0u)]
+    [Arguments(3u, true, 3u)]
+    public async Task Unpacks_one_ba2_archive(uint version, bool compressed, uint compressionMethod)
+    {
+        using var workspace = new Workspace();
+        string source = workspace.AddArchive("test.ba2", Ba2Fixture.CreateGeneral(version, compressed, compressionMethod));
+        using var console = new TestConsole();
+        var root = new BsaRootCommand(new ExtractionApplication(console, false));
+        await Assert.That(await root.Parse(["unpack", source, "-o", workspace.Output, "--non-interactive"]).InvokeAsync()).IsEqualTo(0);
+        await Assert.That(await File.ReadAllBytesAsync(Path.Combine(workspace.Output, "meshes", "first.bin"))).IsEquivalentTo(Ba2Fixture.FirstContent);
+        await Assert.That(await File.ReadAllBytesAsync(Path.Combine(workspace.Output, "meshes", "second.bin"))).IsEquivalentTo(Ba2Fixture.SecondContent);
+    }
+
+    [Test]
+    public async Task Unpacks_ba2_textures_as_dds_files()
+    {
+        using var workspace = new Workspace();
+        string source = workspace.AddArchive("textures.ba2", Ba2Fixture.CreateTexture(compressed: true));
+        using var console = new TestConsole();
+        var root = new BsaRootCommand(new ExtractionApplication(console, false));
+        await Assert.That(await root.Parse(["unpack", source, "-o", workspace.Output, "--non-interactive"]).InvokeAsync()).IsEqualTo(0);
+        byte[] dds = await File.ReadAllBytesAsync(Path.Combine(workspace.Output, "textures", "test.dds"));
+        await Assert.That(dds.AsSpan(0, 4).ToArray()).IsEquivalentTo("DDS "u8.ToArray());
+        await Assert.That(dds.AsSpan(148).ToArray()).IsEquivalentTo(Ba2Fixture.TexturePixelData);
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Batch_selection_includes_bsa_and_ba2_archives(bool all)
+    {
+        using var workspace = new Workspace();
+        workspace.AddArchive("one.bsa", BsaFixture.Create(folder: "sound"));
+        workspace.AddArchive("two.BA2", Ba2Fixture.CreateGeneral(compressed: true));
+        workspace.AddArchive("three.ba2", Ba2Fixture.CreateTexture());
+        workspace.AddArchive("ignored.esm", [1, 2, 3]);
+        using var console = new TestConsole();
+        var root = new BsaRootCommand(new ExtractionApplication(console, false));
+        string[] selection = all ? ["--all"] : ["--archive", "one.bsa", "--archive", "TWO.ba2"];
+        await Assert.That(await root.Parse(["unpack-directory", workspace.Input, "-o", workspace.Output, .. selection]).InvokeAsync()).IsEqualTo(0);
+        await Assert.That(File.Exists(Path.Combine(workspace.Output, "sound", "first.bin"))).IsTrue();
+        await Assert.That(await File.ReadAllBytesAsync(Path.Combine(workspace.Output, "meshes", "first.bin"))).IsEquivalentTo(Ba2Fixture.FirstContent);
+        await Assert.That(File.Exists(Path.Combine(workspace.Output, "textures", "test.dds"))).IsEqualTo(all);
+        await Assert.That(console.Output).Contains(all ? "3 archive(s) unpacked" : "2 archive(s) unpacked");
+    }
+
+    [Test]
+    public async Task Interactive_selection_lists_ba2_archives()
+    {
+        using var workspace = new Workspace();
+        workspace.AddArchive("a.bsa", BsaFixture.Create(folder: "sound"));
+        workspace.AddArchive("b.ba2", Ba2Fixture.CreateGeneral());
+        using var console = new TestConsole();
+        console.Profile.Capabilities.Interactive = true;
+        console.Input.PushKey(ConsoleKey.DownArrow);
+        console.Input.PushKey(ConsoleKey.Spacebar);
+        console.Input.PushKey(ConsoleKey.Enter);
+        var root = new BsaRootCommand(new ExtractionApplication(console, true));
+        await Assert.That(await root.Parse(["unpack-directory", workspace.Input, "-o", workspace.Output]).InvokeAsync()).IsEqualTo(0);
+        await Assert.That(File.Exists(Path.Combine(workspace.Output, "meshes", "first.bin"))).IsTrue();
+        await Assert.That(Directory.Exists(Path.Combine(workspace.Output, "sound"))).IsFalse();
+    }
+
+    [Test]
+    [Arguments("archive.bsa", true)]
+    [Arguments("archive.BA2", true)]
+    [Arguments("archive.ba2.bak", false)]
+    [Arguments("plugin.esm", false)]
+    [Arguments("noextension", false)]
+    public async Task Recognises_archive_extensions(string name, bool expected) =>
+        await Assert.That(ExtractionApplication.IsArchive(name)).IsEqualTo(expected);
+
     private sealed class Workspace : IDisposable
     {
         private readonly string _root = Path.Combine(Path.GetTempPath(), $"bsa-tests-{Guid.NewGuid():N}");

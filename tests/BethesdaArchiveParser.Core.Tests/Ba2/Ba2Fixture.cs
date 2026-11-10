@@ -110,10 +110,10 @@ internal static class Ba2Fixture
     public static byte[] TexturePixelData => [.. Enumerable.Range(0, 8).Select(static i => (byte)i), .. Enumerable.Range(100, 16).Select(static i => (byte)i)];
 
     /// <summary>Offset of the first file record's packed-size field, for corruption tests.</summary>
-    public static int FirstGeneralPackedSizeOffset(uint version) => HeaderSize(version) + 20;
+    public static int FirstGeneralPackedSizeOffset(uint version) => HeaderSize(version) + 24;
 
     /// <summary>Offset of the first file record's data-offset field, for corruption tests.</summary>
-    public static int FirstGeneralDataOffsetOffset(uint version) => HeaderSize(version) + 12;
+    public static int FirstGeneralDataOffsetOffset(uint version) => HeaderSize(version) + 16;
 
     /// <summary>Offset of the first file record's sentinel field, for corruption tests.</summary>
     public static int FirstGeneralSentinelOffset(uint version) => HeaderSize(version) + 32;

@@ -4,7 +4,7 @@ namespace BsaParser.Cli;
 
 internal sealed class BsaRootCommand : RootCommand
 {
-    public BsaRootCommand(ExtractionApplication application) : base("Unpack Bethesda BSA archives (versions 103, 104 and 105).")
+    public BsaRootCommand(ExtractionApplication application) : base("Unpack Bethesda BSA (versions 103, 104, 105) and BA2 (Fallout 4 and Starfield) archives.")
     {
         Subcommands.Add(new UnpackCommand(application));
         Subcommands.Add(new UnpackDirectoryCommand(application));
@@ -13,7 +13,7 @@ internal sealed class BsaRootCommand : RootCommand
 
 internal sealed class UnpackCommand : Command
 {
-    public UnpackCommand(ExtractionApplication application) : base("unpack", "Unpack one BSA, preserving its directory structure.")
+    public UnpackCommand(ExtractionApplication application) : base("unpack", "Unpack one BSA or BA2 archive, preserving its directory structure. BA2 textures are written as DDS files.")
     {
         var input = new InputFileArgument();
         var output = new OutputDirectoryOption();
@@ -30,7 +30,7 @@ internal sealed class UnpackCommand : Command
 
 internal sealed class UnpackDirectoryCommand : Command
 {
-    public UnpackDirectoryCommand(ExtractionApplication application) : base("unpack-directory", "Select BSAs and unpack into a shared output directory, preserving archive paths.")
+    public UnpackDirectoryCommand(ExtractionApplication application) : base("unpack-directory", "Select BSA/BA2 archives and unpack into a shared output directory, preserving archive paths.")
     {
         var input = new InputDirectoryArgument();
         var output = new OutputDirectoryOption();
