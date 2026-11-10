@@ -41,7 +41,8 @@
 ## External fixtures
 
 - No default test may depend on a particular Steam installation or local drive path.
-- Use `BSA_VERIFY_DIRECTORY` for optional local BSA smoke checks. Successful parsing
+- Use `BSA_VERIFY_DIRECTORY` for optional local BSA smoke checks. They also assert that
+  `BsaHash` reproduces every stored file-name hash for ASCII names. Successful parsing
   and decompression establish structural consistency, not independent content correctness.
 - Use `BSA_TEST_ARCHIVE` and `BSA_TEST_MANIFEST` for supplied BSA regression data.
   The manifest contains every expected path and its SHA-256 hash; obtain hashes from

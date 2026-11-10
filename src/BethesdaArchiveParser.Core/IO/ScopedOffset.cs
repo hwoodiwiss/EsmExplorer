@@ -5,7 +5,7 @@ internal sealed class ScopedOffset : IDisposable
     private readonly Stream _stream;
     private readonly long _originalPosition;
 
-    public ScopedOffset(Stream stream, long offset, SeekOrigin origin = SeekOrigin.Begin)
+    public ScopedOffset(Stream stream, long offset)
     {
         if (!stream.CanSeek)
         {
@@ -13,7 +13,7 @@ internal sealed class ScopedOffset : IDisposable
         }
         _stream = stream;
         _originalPosition = stream.Position;
-        stream.Seek(offset, origin);
+        stream.Seek(offset, SeekOrigin.Begin);
     }
 
     public void Dispose() => _stream.Seek(_originalPosition, SeekOrigin.Begin);

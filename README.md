@@ -206,13 +206,13 @@ Streams are caller-owned and remain open; operations on the same source stream m
 be serialized. Payload reads restore the source position. `ReadFile[Async]` returns
 a byte array; prefer `CopyFileTo[Async]` for large entries. Payload copying uses a
 pooled buffer, bounds compressed input to the entry, and verifies the expanded length.
-Archive metadata is held in memory with buffered reads and a case-insensitive path index.
-Treat the legacy mutable metadata lists as read-only after construction.
+Archive metadata is held in memory with buffered reads and a case-insensitive path index
+(`Entries` / `GetFileByPath`); the format-specific archives expose read-only entry lists.
 
 Supported: named PC BSA versions 103/104 (zlib) and 105 (LZ4 frames), including
 per-file compression overrides and embedded names. Xbox/XMem archives and archives
-without directory/file names are explicitly rejected. Version 105 folder offsets now
-use `ulong` (`BsaFolderRecord.Offset`/`FileBlockOffset`) rather than truncating to 32 bits.
+without directory/file names are explicitly rejected. Version 105 64-bit folder offsets are
+preserved rather than truncated to 32 bits.
 `BinaryBsaHeader.Version` uses the `uint`-backed `BsaVersion` enum: `Oblivion` (103),
 `Fallout3AndSkyrim` (104, including New Vegas), and `SkyrimSpecialEdition` (105).
 These mappings follow the [UESP format documentation](https://en.uesp.net/wiki/Skyrim_Mod:Archive_File_Format).

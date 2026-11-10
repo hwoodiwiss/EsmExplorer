@@ -1,7 +1,6 @@
 using System.Buffers.Binary;
 using BethesdaArchiveParser.Core.Ba2;
 using BethesdaArchiveParser.Core.Ba2.Reader;
-using BethesdaArchiveParser.Core.Bsa.Reader;
 
 namespace BethesdaArchiveParser.Core.Tests;
 
@@ -262,17 +261,6 @@ public sealed class Ba2ArchiveTests
         _ = new Ba2ArchiveReader(stream).ReadBa2Archive();
         await Assert.That(stream.CanRead).IsTrue();
         await Assert.That(() => new Ba2ArchiveReader(new NonSeekable())).Throws<ArgumentException>();
-    }
-
-    // ---- BSA interplay (unified API tests live in ArchiveReaderTests)
-
-    [Test]
-    public async Task Bsa_reader_rejects_ba2_input_and_vice_versa()
-    {
-        using var ba2 = new MemoryStream(Ba2Fixture.CreateGeneral());
-        using var bsa = new MemoryStream(BsaFixture.Create());
-        await Assert.That(() => new BsaArchiveReader(ba2).ReadBsaArchive()).Throws<InvalidDataException>();
-        await Assert.That(() => new Ba2ArchiveReader(bsa).ReadBa2Archive()).Throws<InvalidDataException>();
     }
 
     // ---- DX10 textures

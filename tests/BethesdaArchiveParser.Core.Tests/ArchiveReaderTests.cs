@@ -146,10 +146,12 @@ public sealed class ArchiveReaderTests
     }
 
     [Test]
-    public async Task Bsa_reader_identifies_ba2_input()
+    public async Task Format_specific_readers_identify_the_other_format()
     {
-        using var stream = new MemoryStream(Ba2Fixture.CreateGeneral());
-        await Assert.That(() => new BsaArchiveReader(stream).ReadBsaArchive()).Throws<InvalidDataException>().WithMessageContaining("BA2");
+        using var ba2 = new MemoryStream(Ba2Fixture.CreateGeneral());
+        using var bsa = new MemoryStream(BsaFixture.Create());
+        await Assert.That(() => new BsaArchiveReader(ba2).ReadBsaArchive()).Throws<InvalidDataException>().WithMessageContaining("BA2");
+        await Assert.That(() => new Ba2ArchiveReader(bsa).ReadBa2Archive()).Throws<InvalidDataException>().WithMessageContaining("BSA");
     }
 
     [Test]

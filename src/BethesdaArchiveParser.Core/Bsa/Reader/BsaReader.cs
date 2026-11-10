@@ -1,12 +1,11 @@
 using System.Buffers.Binary;
-using System.Text;
+using BethesdaArchiveParser.Core.IO;
 
 namespace BethesdaArchiveParser.Core.Bsa.Reader;
 
 // Read-ahead avoids an allocation and a stream/JS interop call per scalar or character.
 internal sealed class BsaReader(Stream stream, bool isAsync, CancellationToken cancellationToken)
 {
-    private static readonly Encoding NameEncoding = CreateEncoding();
     private readonly byte[] _buffer = new byte[16 * 1024];
     private int _position;
     private int _length;
@@ -25,12 +24,6 @@ internal sealed class BsaReader(Stream stream, bool isAsync, CancellationToken c
         }
         stream.Position = offset;
         _position = _length = 0;
-    }
-
-    private static Encoding CreateEncoding()
-    {
-        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-        return Encoding.GetEncoding(1252);
     }
 
     public async ValueTask<byte> ReadByte()
@@ -82,7 +75,7 @@ internal sealed class BsaReader(Stream stream, bool isAsync, CancellationToken c
         {
             throw new InvalidDataException("Folder name is not null terminated.");
         }
-        return NameEncoding.GetString(bytes.AsSpan(0, length - 1));
+        return ArchiveEncoding.Windows1252.GetString(bytes.AsSpan(0, length - 1));
     }
 
     public async ValueTask<List<string>> ReadFileNames(uint byteCount, uint count)
@@ -114,7 +107,7 @@ internal sealed class BsaReader(Stream stream, bool isAsync, CancellationToken c
             {
                 throw new InvalidDataException("Empty BSA filename.");
             }
-            names.Add(NameEncoding.GetString(bytes.AsSpan(start, i - start)));
+            names.Add(ArchiveEncoding.Windows1252.GetString(bytes.AsSpan(start, i - start)));
             start = i + 1;
         }
         if (names.Count != count)

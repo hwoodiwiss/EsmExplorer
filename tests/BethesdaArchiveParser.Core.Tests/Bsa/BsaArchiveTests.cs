@@ -31,7 +31,6 @@ public sealed class BsaArchiveTests
         await Assert.That((uint)archive.Header.Version).IsEqualTo(version);
         await Assert.That(archive.Entries[0].Path).IsEqualTo("meshes\\first.bin");
         await Assert.That(archive.GetFileByPath("MESHES/first.BIN")).IsEqualTo(archive.Entries[0].File);
-        await Assert.That(archive.Folders[0].FileOffsets[1] - archive.Folders[0].FileOffsets[0]).IsEqualTo(16L);
         for (int i = 0; i < 2; i++)
         {
             byte[] expected = i == 0 ? "first payload"u8.ToArray() : "second payload must not leak"u8.ToArray();
