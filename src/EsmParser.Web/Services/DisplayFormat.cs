@@ -16,12 +16,6 @@ public static class DisplayFormat
         _ => Invariant($"{size / (1024.0 * 1024.0 * 1024.0):0.##} GiB"),
     };
 
-    public static string OffsetRange(PluginNode node)
-    {
-        ArgumentNullException.ThrowIfNull(node);
-        return Invariant($"{Hex(node.Offset)} – {Hex(node.EndOffset)}");
-    }
-
     /// <summary>A best-effort one-line preview of a field's payload.</summary>
     public static string FieldPreview(RecordField field)
     {

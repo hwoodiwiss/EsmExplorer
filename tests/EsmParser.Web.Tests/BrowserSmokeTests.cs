@@ -25,9 +25,9 @@ public sealed class BrowserSmokeTests
         foreach (string name in names)
         {
             if (string.IsNullOrWhiteSpace(name) || name.IndexOfAny(['/', '\\', ':']) >= 0
-                || !name.EndsWith(".bsa", StringComparison.OrdinalIgnoreCase))
+                || !(name.EndsWith(".bsa", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".ba2", StringComparison.OrdinalIgnoreCase)))
             {
-                throw new InvalidOperationException("Use top-level BSA filenames in BSA_SMOKE_ARCHIVES.");
+                throw new InvalidOperationException("Use top-level BSA/BA2 filenames in BSA_SMOKE_ARCHIVES.");
             }
             sizes.Add(name, new FileInfo(Path.Combine(root, name)).Length);
         }
@@ -137,9 +137,11 @@ public sealed class BrowserSmokeTests
             """);
         try
         {
-            await page.GotoAsync(new Uri(appUrl, "/model").AbsoluteUri);
+            await page.GotoAsync(appUrl.AbsoluteUri);
             await page.GetByRole(AriaRole.Button, new() { Name = "Choose data root…" }).ClickAsync();
-            await page.GetByText($"Data root 'Data' selected; {names.Length} BSA archives indexed.", new() { Exact = true }).WaitForAsync();
+            await page.GetByText($"Data root 'Data' selected; 0 plugins found, {names.Length} archives indexed.", new() { Exact = true }).WaitForAsync();
+            // Client-side navigation keeps the granted root; a full page load would discard it.
+            await page.GetByRole(AriaRole.Link, new() { Name = "Model Viewer" }).ClickAsync();
             await page.GetByRole(AriaRole.Textbox, new() { Name = "Data-relative model path" }).FillAsync(model);
             await page.GetByRole(AriaRole.Button, new() { Name = "Load path", Exact = true }).ClickAsync();
             // The exact success status excludes partial loads reporting missing dependencies.

@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
-using BethesdaArchiveParser.Core.Reader;
+using BethesdaArchiveParser.Core.Bsa;
+using BethesdaArchiveParser.Core.Bsa.Reader;
 
 namespace BethesdaArchiveParser.Core.Tests;
 
@@ -61,11 +62,30 @@ public sealed class ExternalArchiveTests
             var reader = new BsaArchiveReader(stream);
             var archive = await reader.ReadBsaArchiveAsync();
             await Assert.That(archive.Entries.Count).IsEqualTo((int)archive.Header.FileCount);
+            // Hashes are not used for lookup, so this is the only check that BsaHash matches shipped data.
+            // Non-ASCII names are reported rather than asserted, as their hashing depends on the tool's code page.
+            var mismatches = new List<string>();
+            int nonAsciiMismatches = 0;
+            foreach (var entry in archive.Entries)
+            {
+                ulong expected = BsaHash.Compute(Path.GetFileName(entry.Path));
+                if (expected == entry.File.NameHash)
+                {
+                    continue;
+                }
+                if (!entry.Path.All(char.IsAscii))
+                {
+                    nonAsciiMismatches++;
+                    continue;
+                }
+                mismatches.Add($"{entry.Path}: computed {expected:X16}, stored {entry.File.NameHash:X16}");
+            }
+            await Assert.That(string.Join(Environment.NewLine, mismatches)).IsEqualTo("");
             foreach (var entry in archive.Entries)
             {
                 await reader.CopyBsaFileToAsync(entry.File, Stream.Null);
             }
-            Console.WriteLine($"Verified {Path.GetFileName(path)}: {archive.Entries.Count} entries");
+            Console.WriteLine($"Verified {Path.GetFileName(path)}: {archive.Entries.Count} entries, {nonAsciiMismatches} non-ASCII hash mismatches");
         }
     }
 

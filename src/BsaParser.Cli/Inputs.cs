@@ -6,7 +6,7 @@ internal sealed class InputFileArgument : Argument<string>
 {
     public InputFileArgument() : base("input")
     {
-        Description = "BSA file to unpack.";
+        Description = "BSA or BA2 archive to unpack.";
     }
 }
 
@@ -14,7 +14,7 @@ internal sealed class InputDirectoryArgument : Argument<string>
 {
     public InputDirectoryArgument() : base("input-directory")
     {
-        Description = "Directory containing BSA files (top level only).";
+        Description = "Directory containing BSA/BA2 archives (top level only).";
     }
 }
 
@@ -47,7 +47,7 @@ internal sealed class AllArchivesOption : Option<bool>
 {
     public AllArchivesOption() : base("--all")
     {
-        Description = "Unpack every BSA in the input directory.";
+        Description = "Unpack every BSA and BA2 archive in the input directory.";
     }
 }
 
@@ -55,7 +55,7 @@ internal sealed class ArchiveNamesOption : Option<string[]>
 {
     public ArchiveNamesOption() : base("--archive", "-a")
     {
-        Description = "Select a BSA by filename. Repeat to select multiple archives.";
+        Description = "Select an archive by filename. Repeat to select multiple archives.";
         Arity = ArgumentArity.OneOrMore;
         AllowMultipleArgumentsPerToken = false;
     }

@@ -1,4 +1,4 @@
-namespace BethesdaArchiveParser.Core.Extensions;
+namespace BethesdaArchiveParser.Core.IO;
 
 internal static class ValueTaskExtensions
 {

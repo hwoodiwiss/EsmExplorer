@@ -20,16 +20,17 @@
             Open .nif…
             <InputFile OnChange="LoadNifFileAsync" accept=".nif" class="d-none" disabled="@_loading" />
         </label>
-        <button class="btn btn-outline-primary btn-sm" @onclick="PickDataRootAsync" disabled="@_loading">
-            Choose data root…
-        </button>
+        @if (!GameData.HasRoot)
+        {
+            <a class="btn btn-outline-primary btn-sm" href="">Choose data root…</a>
+        }
         <span class="data-root-help" tabindex="0" role="note" aria-label="Data root setup instructions">
             <span class="data-root-help-icon">i</span>
             <span class="data-root-help-popover">
                 <strong>Data root setup</strong>
-                <span>For New Vegas and other BSA-based games, choose the installed <code>Data</code> directory directly. BSA files are indexed and assets are read on demand.</span>
+                <span>For New Vegas and other BSA-based games, choose the installed <code>Data</code> directory on the Open Plugins page. BSA and BA2 files are indexed and assets are read on demand.</span>
                 <span>Loose files override archived assets. Duplicate archived paths use the last archive in filename order, not the game's load order.</span>
-                <span>For Starfield, extract the BA2 files and Creation Kit materials into a resource folder first.</span>
+                <span>For accurate Starfield materials, add the Creation Kit material files as loose files.</span>
                 <a href="https://github.com/hwoodiwiss/EsmExplorer#preparing-starfield-resources" target="_blank" rel="noopener noreferrer">Open full instructions</a>
             </span>
         </span>
@@ -46,7 +47,7 @@
                     @onclick="() => LoadModelAsync(_pathInput)">Load path</button>
         </div>
         <details class="mt-2">
-            <summary>Browse archived models (@GameData.ArchiveCount BSA archives)</summary>
+            <summary>Browse archived models (@GameData.ArchiveCount archives)</summary>
             <input class="form-control form-control-sm my-2" aria-label="Filter archived models" placeholder="Filter model paths…"
                    @bind="_modelFilter" @bind:event="oninput" />
             <div style="max-height: 16rem; overflow-y: auto;">
@@ -140,7 +141,7 @@
         }
         else if (!_unsupported)
         {
-            _status = "Open a record with a MODL field in the explorer and click View, or choose a data root.";
+            _status = "Open a record with a MODL field in the explorer and click View, or choose a data root on the Open Plugins page.";
         }
     }
 
@@ -149,40 +150,6 @@
         if (firstRender && _pendingPath is not null && GameData.HasRoot)
         {
             await LoadModelAsync(_pendingPath);
-        }
-    }
-
-    private async Task PickDataRootAsync()
-    {
-        if (_unsupported)
-        {
-            return;
-        }
-        _loading = true;
-        _status = "Choose a Data folder; indexing BSA archives…";
-        try
-        {
-            if (!await GameData.PickAsync())
-            {
-                _status = "Folder selection cancelled.";
-                return;
-            }
-            if (_pendingPath is not null)
-            {
-                await LoadModelAsync(_pendingPath);
-            }
-            else
-            {
-                _status = $"Data root '{GameData.RootName}' selected; {GameData.ArchiveCount} BSA archives indexed.";
-            }
-        }
-        catch (Exception ex)
-        {
-            _status = $"Could not select data root: {ex.Message}";
-        }
-        finally
-        {
-            _loading = false;
         }
     }
 

@@ -1,4 +1,4 @@
-# BSA CLI guidance
+# Archive CLI guidance
 
 ## User requirements
 
@@ -20,7 +20,7 @@
 - `TerminalMode` handles environment detection; `ExtractionApplication` coordinates
   selection/reporting; `ArchiveExtractor` performs filesystem extraction.
 - Non-interactive batch mode requires `--all` or repeated `--archive` selections.
-- Archive selection is top-level and extension matching is case-insensitive.
+- Archive selection is top-level and matches `.bsa`/`.ba2` case-insensitively (`ExtractionApplication.IsArchive`); extraction goes through `ArchiveReader`.
   `--all` uses case-insensitive filename order; explicit selections use supplied order.
   Do not infer game load order from this ordering.
 - Existing paths require `--overwrite`, including collisions between archives. With

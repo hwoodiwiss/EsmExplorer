@@ -17,10 +17,6 @@ export function isSupported(): boolean {
   return typeof window.showDirectoryPicker === "function";
 }
 
-export function hasRoot(): boolean {
-  return rootHandle !== null;
-}
-
 export async function pickDataRoot(): Promise<string | null> {
   const showDirectoryPicker = window.showDirectoryPicker;
   if (!showDirectoryPicker) {
@@ -35,7 +31,7 @@ export async function pickDataRoot(): Promise<string | null> {
   }
 }
 
-export async function resolveFile(path: string): Promise<File | null> {
+async function resolveFile(path: string): Promise<File | null> {
   if (!rootHandle || !path) {
     return null;
   }

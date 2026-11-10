@@ -1,7 +1,7 @@
 using System.Buffers.Binary;
-using BethesdaArchiveParser.Core.Extensions;
+using BethesdaArchiveParser.Core.IO;
 
-namespace BethesdaArchiveParser.Core.Reader;
+namespace BethesdaArchiveParser.Core.Bsa.Reader;
 
 /// <summary>Reads a caller-owned, readable, seekable stream. Operations on one stream must not overlap.</summary>
 public sealed class BsaArchiveReader

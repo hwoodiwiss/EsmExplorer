@@ -9,8 +9,8 @@ internal static class ArchiveExtractor
     {
         await using var source = new FileStream(archivePath, FileMode.Open, FileAccess.Read, FileShare.Read,
             64 * 1024, FileOptions.Asynchronous | FileOptions.RandomAccess);
-        var reader = new BsaArchiveReader(source);
-        var archive = await reader.ReadBsaArchiveAsync(cancellationToken).ConfigureAwait(false);
+        var reader = new ArchiveReader(source);
+        var archive = await reader.ReadArchiveAsync(cancellationToken).ConfigureAwait(false);
         string root = Path.GetFullPath(outputDirectory);
         // Validate the whole plan before writing anything, including platform-specific collisions.
         var paths = new HashSet<string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
@@ -43,13 +43,13 @@ internal static class ArchiveExtractor
             string parent = Path.GetDirectoryName(target)!;
             CheckExistingPath(target);
             Directory.CreateDirectory(parent);
-            string temporary = Path.Combine(parent, $".bsa-{Guid.NewGuid():N}.tmp");
+            string temporary = Path.Combine(parent, $".archive-{Guid.NewGuid():N}.tmp");
             try
             {
                 await using (var destination = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None,
                     64 * 1024, FileOptions.Asynchronous))
                 {
-                    await reader.CopyBsaFileToAsync(entry.File, destination, cancellationToken).ConfigureAwait(false);
+                    await reader.CopyFileToAsync(entry, destination, cancellationToken).ConfigureAwait(false);
                 }
                 cancellationToken.ThrowIfCancellationRequested();
                 File.Move(temporary, target, overwrite);

@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace BethesdaArchiveParser.Core;
+namespace BethesdaArchiveParser.Core.Bsa;
 
 [StructLayout(LayoutKind.Sequential, Pack = 4)]
 public struct BinaryBsaHeader

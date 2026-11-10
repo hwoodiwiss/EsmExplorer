@@ -59,9 +59,66 @@ public sealed class GameDataTests
         await Assert.That(results[0]).IsEquivalentTo("first payload"u8.ToArray());
         await Assert.That(results[1]).IsEquivalentTo("second payload must not leak"u8.ToArray());
         using var metadata = new MemoryStream(archiveBytes);
-        var file = new BethesdaArchiveParser.Core.Reader.BsaArchiveReader(metadata).ReadBsaArchive().Entries[0].File;
+        var file = new BethesdaArchiveParser.Core.Bsa.Reader.BsaArchiveReader(metadata).ReadBsaArchive().Entries[0].File;
         System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(archiveBytes.AsSpan((int)file.Offset), 1);
         await Assert.That(async () => await service.ResolveAsync("meshes/first.bin")).Throws<InvalidDataException>();
+        await Assert.That(js.OpenCount).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task Data_root_lists_top_level_plugins_and_indexes_ba2_alongside_bsa()
+    {
+        var js = new BrowserFiles();
+        js.Files["Starfield.ESM"] = [1, 2, 3];
+        js.Files["b.esp"] = [];
+        js.Files["A.esl"] = [];
+        js.Files["notes.txt"] = [];
+        js.Files["plugin.esm.bak"] = [];
+        js.Files["meshes/nested.esp"] = [];
+        js.Files["a.bsa"] = BsaFixture.Create(compressed: true);
+        js.Files["Z - Main.BA2"] = Ba2Fixture.CreateGeneral(firstContent: "from ba2"u8.ToArray());
+        await using var service = new GameDataService(js, NullLogger<GameDataService>.Instance);
+        await Assert.That(await service.OpenPluginAsync("Starfield.ESM")).IsNull();
+        await Assert.That(await service.PickAsync()).IsTrue();
+        await Assert.That(service.PluginNames).IsEquivalentTo(["A.esl", "b.esp", "Starfield.ESM"]);
+        await Assert.That(service.ArchiveCount).IsEqualTo(2);
+        await Assert.That(service.ArchiveErrors.Count).IsEqualTo(0);
+        // The BA2 sorts after the BSA, so it wins the duplicate path.
+        await Assert.That(await service.ResolveAsync("meshes/first.bin")).IsEquivalentTo("from ba2"u8.ToArray());
+        await Assert.That(service.ArchivedModelPaths).IsEmpty();
+        js.Files.Remove("b.esp");
+        js.CancelPicker = true;
+        await Assert.That(await service.PickAsync()).IsFalse();
+        await Assert.That(service.PluginNames.Count).IsEqualTo(3);
+        js.CancelPicker = false;
+        await service.PickAsync();
+        await Assert.That(service.PluginNames).IsEquivalentTo(["A.esl", "Starfield.ESM"]);
+    }
+
+    [Test]
+    public async Task Plugins_open_from_data_root_as_bounded_sources_and_release_their_handles()
+    {
+        var js = new BrowserFiles();
+        byte[] plugin = [.. Enumerable.Range(0, 300).Select(static i => (byte)i)];
+        js.Files["Test.esm"] = plugin;
+        js.Files["archive.bsa"] = BsaFixture.Create();
+        await using var service = new GameDataService(js, NullLogger<GameDataService>.Instance);
+        await service.PickAsync();
+        await Assert.That(await service.OpenPluginAsync("archive.bsa")).IsNull();
+        await Assert.That(await service.OpenPluginAsync("../Test.esm")).IsNull();
+        await Assert.That(await service.OpenPluginAsync("missing.esp")).IsNull();
+        await using (var source = await service.OpenPluginAsync("test.ESM"))
+        {
+            await Assert.That(source).IsNotNull();
+            await Assert.That(source!.Length).IsEqualTo(300L);
+            byte[] buffer = new byte[4];
+            var read = await source.ReadExactlyAsync(296, buffer);
+            await Assert.That(read is EsmParser.Core.Success<EsmParser.Core.Unit>).IsTrue();
+            await Assert.That(buffer).IsEquivalentTo(new byte[] { 40, 41, 42, 43 });
+            var past = await source.ReadExactlyAsync(297, buffer);
+            await Assert.That(past is EsmParser.Core.ParseError { Kind: EsmParser.Core.ParseErrorKind.UnexpectedEndOfData }).IsTrue();
+            await Assert.That(js.OpenCount).IsEqualTo(1);
+        }
         await Assert.That(js.OpenCount).IsEqualTo(0);
     }
 

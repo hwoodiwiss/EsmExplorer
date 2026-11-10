@@ -1,4 +1,4 @@
-namespace BethesdaArchiveParser.Core;
+namespace BethesdaArchiveParser.Core.Bsa;
 
 public sealed record BsaFileRecord(BinaryBsaHeader Header, ulong NameHash, uint Size, uint Offset)
 {

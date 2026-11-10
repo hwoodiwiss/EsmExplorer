@@ -33,7 +33,7 @@ export async function readSlice(id: number, offset: number, length: number): Pro
   return await readFileSlice(file, offset, length);
 }
 
-export async function readFileSlice(file: File, offset: number, length: number): Promise<Uint8Array> {
+async function readFileSlice(file: File, offset: number, length: number): Promise<Uint8Array> {
   const buffer = await file.slice(offset, offset + length).arrayBuffer();
   return new Uint8Array(buffer);
 }

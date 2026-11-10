@@ -1,4 +1,4 @@
-# BSA library guidance
+# Archive library guidance
 
 ## User requirements
 
@@ -14,6 +14,10 @@
 
 ## Current contracts and format pitfalls
 
+- Layout: format-agnostic `Archive*` types at the root and `Reader/ArchiveReader.cs`;
+  per-format code in `Bsa/` and `Ba2/`, each with its own `Reader/`; shared bounded I/O
+  and payload copying in `IO/`. Namespaces follow folders. `ArchiveReader` only detects
+  and delegates, so keep parsing in the format-specific readers.
 - Readers use caller-owned readable, seekable streams and leave them open. Operations
   sharing a source stream must be serialized; payload reads restore source position.
 - Keep cancellation flowing through async source/destination operations.
@@ -24,11 +28,18 @@
 - `Stream.CopyTo`'s buffer-size argument is not a byte limit. Use bounded reads to
   prevent an entry from consuming the next entry or the remainder of the archive.
 - Parse binary fields with explicit endianness. Preserve 64-bit BSA 105 folder offsets.
-- Supported formats are named PC BSA 103/104 (zlib) and 105 (LZ4 frames). Xbox/XMem
-  and unnamed archives are currently rejected explicitly. Do not imply support for
+- Supported formats are named PC BSA 103/104 (zlib) and 105 (LZ4 frames), and BA2
+  v1/v2/v3/v7/v8 `GNRL`/`DX10` (zlib, or raw LZ4 blocks for v3 method 3). Xbox/XMem BSAs,
+  `GNMF` BA2s, and unnamed archives are rejected explicitly. Do not imply support for
   another format without implementation and verification.
+- BA2: DX10 entries are emitted as DDS (`Ba2/Reader/DdsHeader.cs`, written from the DDS spec).
+  Don't validate the 0xBAADF00D sentinel, record flags, the v2/v3 unknown header field, or
+  name/directory hashes. Shipped archives contain non-ASCII names whose hashes `Ba2Hash`
+  does not reproduce.
+- An overstated compressed size can't always be detected, because zlib and LZ4 stop at their
+  own end markers. Bounding still guarantees that a read never affects the following entry.
 - Preserve the shipped-archive filename-table compatibility behaviour documented in
-  `Reader/BsaReader.cs` and its regression test. Do not tighten validation solely from
+  `Bsa/Reader/BsaReader.cs` and its regression test. Do not tighten validation solely from
   assumptions about perfectly formed archives.
 - Keep malformed-input failures consistent with the existing exception-based API;
   the plugin parser's result-union convention is a separate library contract.
